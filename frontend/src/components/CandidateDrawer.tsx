@@ -89,23 +89,47 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
 
   const llmTicks = latestCall?.raw_webhook_data?.llm_ticks;
 
-  // Evaluation logic for Agent 1 Ticks
+  // Strict Verbal AI Confirmation rule for Phone Number Purchased
   const phonePurchasedTick: TickState = (() => {
-    if (llmTicks?.agent1?.phoneNumberPurchased === true) return 'verified';
+    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
+    const textConfirmsPhone =
+      callText.includes('purchased number') ||
+      callText.includes('bought number') ||
+      callText.includes('purchased phone') ||
+      callText.includes('bought phone') ||
+      callText.includes('purchased a number') ||
+      callText.includes('bought a number') ||
+      callText.includes('phone number purchased');
+
+    if (llmTicks?.agent1?.phoneNumberPurchased === true || textConfirmsPhone) return 'verified';
     if (llmTicks?.agent1?.phoneNumberPurchased === false || llmTicks?.agent1?.phoneValidated === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const agentBuildStartedTick: TickState = (() => {
-    if (llmTicks?.agent1?.agentBuildStarted === true) return 'verified';
+    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
+    const textConfirmsBuild =
+      callText.includes('build started') ||
+      callText.includes('agent build') ||
+      callText.includes('started building') ||
+      callText.includes('built agent');
+
+    if (llmTicks?.agent1?.agentBuildStarted === true || textConfirmsBuild) return 'verified';
     if (llmTicks?.agent1?.agentBuildStarted === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const deadlineConveyedTick: TickState = (() => {
-    if (llmTicks?.agent1?.aug21DeadlineConveyed === true) return 'verified';
+    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
+    const textConfirmsDeadline =
+      callText.includes('aug 21') ||
+      callText.includes('august 21') ||
+      callText.includes('deadline conveyed') ||
+      callText.includes('deadline explained');
+
+    if (llmTicks?.agent1?.aug21DeadlineConveyed === true || textConfirmsDeadline) return 'verified';
     if (llmTicks?.agent1?.aug21DeadlineConveyed === false || isNotInterested) return 'not_yet';
-    return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
+    return 'not_yet';
   })();
 
   // Exact 5 Voiceathon Agent Checklist Schemas
