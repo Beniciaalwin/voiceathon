@@ -7,22 +7,33 @@ export class StatusEngine {
   public evaluateLeadStatus(lead: Lead, event: SnapServeNormalizedEvent): Lead {
     const updatedLead: Lead = { ...lead };
 
-    const isCallSuccess = event.callStatus === 'completed' && event.outcome !== 'wrong_number';
+    const outcome = (event.outcome || '').toLowerCase();
+    const summary = (event.summary || '').toLowerCase();
+    const transcript = (event.transcript || '').toLowerCase();
+
+    const isNotInterested =
+      outcome.includes('not_interested') ||
+      outcome.includes('declined') ||
+      summary.includes('not interested') ||
+      summary.includes('lack of interest') ||
+      transcript.includes('not interested');
+
+    const isCallSuccess = event.callStatus === 'completed' && event.outcome !== 'wrong_number' && !isNotInterested;
 
     // Agent 1: Day 1 — Registration & Onboarding Call
-    if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || !event.agentId) {
+    if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || event.agentId === '456' || !event.agentId) {
       if (isCallSuccess) {
         updatedLead.agent_status = 'completed'; // Green Tick ✓ for Agent 1!
-      } else if (event.callStatus === 'failed') {
-        updatedLead.agent_status = 'failed';
+      } else {
+        updatedLead.agent_status = 'failed'; // Red 🔴 for Agent 1!
       }
     }
 
     // Agent 2: Day 3 — Tech & Track Screening Call
     if (event.agentId === 'agent_tech_screening' || event.agentId === 'agent_snapserve_02') {
       if (isCallSuccess) {
-        updatedLead.cold_call_status = 'completed'; // Green Tick ✓ for Agent 2!
-      } else if (event.callStatus === 'failed') {
+        updatedLead.cold_call_status = 'completed';
+      } else {
         updatedLead.cold_call_status = 'failed';
       }
     }
@@ -30,8 +41,8 @@ export class StatusEngine {
     // Agent 3: Day 5 — Attendance & Discord Confirmation Call
     if (event.agentId === 'agent_confirmation') {
       if (isCallSuccess) {
-        updatedLead.followup_status = 'completed'; // Green Tick ✓ for Agent 3!
-      } else if (event.callStatus === 'failed') {
+        updatedLead.followup_status = 'completed';
+      } else {
         updatedLead.followup_status = 'failed';
       }
     }
@@ -39,8 +50,8 @@ export class StatusEngine {
     // Agent 4: Day 7 — Opening Ceremony & Event Reminder Call
     if (event.agentId === 'agent_reminder') {
       if (isCallSuccess) {
-        updatedLead.reminder_status = 'completed'; // Green Tick ✓ for Agent 4!
-      } else if (event.callStatus === 'failed') {
+        updatedLead.reminder_status = 'completed';
+      } else {
         updatedLead.reminder_status = 'failed';
       }
     }
@@ -48,8 +59,8 @@ export class StatusEngine {
     // Agent 5: Day 8 — Post-Hackathon Feedback & Survey Call
     if (event.agentId === 'agent_feedback') {
       if (isCallSuccess) {
-        updatedLead.email_status = 'completed'; // Green Tick ✓ for Agent 5!
-      } else if (event.callStatus === 'failed') {
+        updatedLead.email_status = 'completed';
+      } else {
         updatedLead.email_status = 'failed';
       }
     }
@@ -62,8 +73,10 @@ export class StatusEngine {
     }
 
     // Participation rule
-    if (event.participated || (event.duration && event.duration > 15)) {
+    if (!isNotInterested && (event.participated || (event.duration && event.duration > 15))) {
       updatedLead.participated_status = 'completed';
+    } else if (isNotInterested) {
+      updatedLead.participated_status = 'failed';
     }
 
     // Email status rule
@@ -77,7 +90,7 @@ export class StatusEngine {
     }
 
     // Calculate Final Status based on aggregated activity flags
-    updatedLead.final_status = this.calculateFinalStatus(updatedLead, event);
+    updatedLead.final_status = this.calculateFinalStatus(updatedLead, event, isNotInterested);
     updatedLead.last_call_id = event.callId;
     updatedLead.last_activity = new Date().toISOString();
 
@@ -87,7 +100,12 @@ export class StatusEngine {
   /**
    * Deterministic Calculation of Final Status
    */
-  public calculateFinalStatus(lead: Lead, latestEvent?: SnapServeNormalizedEvent): FinalStatus {
+  public calculateFinalStatus(lead: Lead, latestEvent?: SnapServeNormalizedEvent, isNotInterested: boolean = false): FinalStatus {
+    // If participant expressed lack of interest
+    if (isNotInterested || lead.participated_status === 'failed') {
+      return 'Not Interested' as any;
+    }
+
     // If phone number is invalid
     if (lead.number_status === 'failed') {
       return 'Invalid Number';
@@ -118,12 +136,7 @@ export class StatusEngine {
       return 'Completed';
     }
 
-    // If participant confirmed
-    if (lead.participated_status === 'completed' || lead.followup_status === 'completed') {
-      return 'Participated';
-    }
-
-    // Default fallback if Agent 1 completed
+    // Default to Participated if at least Agent 1 is completed
     if (lead.agent_status === 'completed') {
       return 'Participated';
     }

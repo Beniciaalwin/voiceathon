@@ -145,16 +145,23 @@ Call Transcript: "${transcript}"`;
   private fallbackRuleParser(summary: string, transcript: string, agentId: string): AgentLLMTicks {
     const text = (summary + ' ' + transcript).toLowerCase();
     const isCompleted = !text.includes('failed') && !text.includes('unreachable') && !text.includes('wrong number');
-    const isNotInterested = text.includes('not interested') || text.includes('opt out') || text.includes('cancel');
+    const isNotInterested =
+      text.includes('not interested') ||
+      text.includes('lack of interest') ||
+      text.includes('declined') ||
+      text.includes('not_interested') ||
+      text.includes('no further assistance') ||
+      text.includes('opt out') ||
+      text.includes('cancel');
 
-    if (agentId === 'agent_registration' || agentId === 'agent_snapserve_01' || !agentId) {
+    if (agentId === 'agent_registration' || agentId === 'agent_snapserve_01' || agentId === '456' || !agentId) {
       return {
         agent1: {
           welcomeConnected: isCompleted ? 'verified' : 'not_yet',
           interestedInParticipating: isCompleted && !isNotInterested ? 'verified' : 'not_yet',
-          phoneNumberPurchased: text.includes('number') || text.includes('purchased') || text.includes('phone') ? 'verified' : 'not_asked',
-          agentBuildStarted: text.includes('build') || text.includes('agent') || text.includes('start') ? 'verified' : 'not_asked',
-          aug21DeadlineConveyed: isCompleted ? 'verified' : 'not_yet',
+          phoneNumberPurchased: !isNotInterested && (text.includes('number purchased') || text.includes('purchased phone')) ? 'verified' : 'not_yet',
+          agentBuildStarted: !isNotInterested && (text.includes('build started') || text.includes('agent build')) ? 'verified' : 'not_yet',
+          aug21DeadlineConveyed: !isNotInterested && text.includes('deadline') ? 'verified' : 'not_yet',
         },
       };
     }

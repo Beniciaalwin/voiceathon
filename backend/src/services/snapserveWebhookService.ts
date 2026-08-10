@@ -3,7 +3,7 @@ import { SnapServeNormalizedEvent } from '../types';
 export class SnapServeWebhookService {
   /**
    * Normalizes incoming raw SnapServe payload into standard internal SnapServeNormalizedEvent format.
-   * Handles variant JSON structures (Snake_case, camelCase, nested event payload objects, retell/vapi style payloads).
+   * Handles variant JSON structures (Snake_case, camelCase, nested event payload objects, retell/vapi style payloads, SnapServe Campaign Lead Transferred payloads).
    */
   public parseWebhookPayload(rawPayload: any): SnapServeNormalizedEvent {
     if (!rawPayload || typeof rawPayload !== 'object') {
@@ -23,6 +23,9 @@ export class SnapServeWebhookService {
       rawPayload.phone ||
       rawPayload.phone_number ||
       rawPayload.to_number ||
+      rawPayload.fields?.phone ||
+      rawPayload.fields?.phone_number ||
+      rawPayload.leadData?.phone_number ||
       rawPayload.customer?.phone ||
       rawPayload.customer_phone ||
       rawPayload.contact?.phone ||
@@ -34,26 +37,42 @@ export class SnapServeWebhookService {
     }
 
     // Extract call identifier
-    const callId =
-      rawPayload.call_id ||
+    const callId = String(
       rawPayload.callId ||
+      rawPayload.call_id ||
+      rawPayload.fields?.callId ||
       rawPayload.id ||
       rawPayload.session_id ||
-      `call_${Date.now()}`;
+      `call_${Date.now()}`
+    );
 
     // Extract agent ID
     const agentId =
-      rawPayload.agent_id ||
       rawPayload.agentId ||
+      rawPayload.agent_id ||
       rawPayload.bot_id ||
       rawPayload.assistant_id ||
-      'agent_snapserve_01';
+      'agent_registration';
+
+    // Determine call outcome / disposition
+    const outcome = String(
+      rawPayload.dispositionResult?.outcome ||
+      rawPayload.dispositionResult?.sub ||
+      rawPayload.disposition ||
+      rawPayload.fields?.disposition ||
+      rawPayload.fields?.status ||
+      rawPayload.outcome ||
+      rawPayload.call_analysis?.custom_analysis_data?.outcome ||
+      rawPayload.result ||
+      'completed'
+    ).toLowerCase();
 
     // Determine call status
     const rawStatus = (
       rawPayload.call_status ||
       rawPayload.status ||
       rawPayload.disposition ||
+      outcome ||
       'completed'
     ).toLowerCase();
 
@@ -68,17 +87,11 @@ export class SnapServeWebhookService {
       callStatus = 'in_progress';
     }
 
-    // Determine call outcome
-    const outcome =
-      rawPayload.outcome ||
-      rawPayload.call_analysis?.custom_analysis_data?.outcome ||
-      rawPayload.disposition ||
-      rawPayload.result ||
-      (callStatus === 'completed' ? 'completed' : 'failed');
-
     // Extract duration (in seconds)
     let duration = 0;
-    if (typeof rawPayload.duration === 'number') {
+    if (typeof rawPayload.durationSeconds === 'number') {
+      duration = rawPayload.durationSeconds;
+    } else if (typeof rawPayload.duration === 'number') {
       duration = rawPayload.duration;
     } else if (typeof rawPayload.duration_seconds === 'number') {
       duration = rawPayload.duration_seconds;
@@ -86,18 +99,11 @@ export class SnapServeWebhookService {
       duration = rawPayload.call_length;
     }
 
-    // Extract transcript
-    const transcript =
-      rawPayload.transcript ||
-      rawPayload.call_transcript ||
-      rawPayload.transcript_text ||
-      rawPayload.concatenated_transcript ||
-      rawPayload.dialogue ||
-      rawPayload.text ||
-      '';
-
     // Extract summary
     const summary =
+      rawPayload.callSummary ||
+      rawPayload.fields?.notes ||
+      rawPayload.dispositionResult?.summary ||
       rawPayload.summary ||
       rawPayload.call_summary ||
       rawPayload.summary_text ||
@@ -106,6 +112,18 @@ export class SnapServeWebhookService {
       rawPayload.analysis?.summary ||
       rawPayload.ai_summary ||
       rawPayload.details ||
+      '';
+
+    // Extract transcript / evidence
+    const transcript =
+      rawPayload.transcript ||
+      rawPayload.call_transcript ||
+      rawPayload.transcript_text ||
+      rawPayload.dispositionResult?.evidence ||
+      rawPayload.concatenated_transcript ||
+      rawPayload.dialogue ||
+      rawPayload.text ||
+      summary ||
       '';
 
     // Extract callback requirements
@@ -122,17 +140,16 @@ export class SnapServeWebhookService {
       undefined;
 
     // Contact info enrichment
-    const name = rawPayload.name || rawPayload.customer?.name || rawPayload.contact?.name;
-    const email = rawPayload.email || rawPayload.customer?.email || rawPayload.contact?.email;
+    const name = rawPayload.name || rawPayload.leadData?.name || rawPayload.fields?.name || rawPayload.customer?.name || rawPayload.contact?.name;
+    const email = rawPayload.email || rawPayload.fields?.email || rawPayload.customer?.email || rawPayload.contact?.email;
 
     return {
       event: rawEvent,
       callId,
+      agentId: String(agentId),
       phone,
       name,
       email,
-      agentId,
-      callType: rawPayload.call_type || 'outbound_ai_call',
       callStatus,
       outcome,
       duration,
@@ -140,22 +157,11 @@ export class SnapServeWebhookService {
       summary,
       callbackRequired,
       callbackTime,
-      numberValid: rawPayload.number_valid ?? true,
-      participated: rawPayload.participated ?? (duration > 15),
-      emailSent: rawPayload.email_sent ?? false,
-      timestamp: rawPayload.timestamp || new Date().toISOString(),
+      numberValid: true,
+      participated: !outcome.includes('not_interested') && !outcome.includes('declined'),
+      timestamp: new Date().toISOString(),
       rawPayload,
     };
-  }
-
-  /**
-   * Simple signature verification for security headers (optional secret matching)
-   */
-  public verifySignature(reqHeaders: any, rawBody: string, secret?: string): boolean {
-    if (!secret) return true; // If no secret configured, allow requests in dev mode
-    const signature = reqHeaders['x-snapserve-signature'] || reqHeaders['x-webhook-secret'];
-    if (!signature) return false;
-    return signature === secret;
   }
 }
 
