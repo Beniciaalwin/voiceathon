@@ -18,11 +18,14 @@ export class SnapServeWebhookService {
       rawPayload.action ||
       'call.completed';
 
-    // Extract phone number from various potential paths
+    // Extract phone number from various potential paths (including toNumber, metadata.callerKey)
     const phone =
       rawPayload.phone ||
       rawPayload.phone_number ||
+      rawPayload.toNumber ||
       rawPayload.to_number ||
+      rawPayload.metadata?.callerKey ||
+      rawPayload.metadata?.phone ||
       rawPayload.fields?.phone ||
       rawPayload.fields?.phone_number ||
       rawPayload.leadData?.phone_number ||
@@ -30,6 +33,8 @@ export class SnapServeWebhookService {
       rawPayload.customer_phone ||
       rawPayload.contact?.phone ||
       rawPayload.lead?.phone ||
+      rawPayload.fromNumber ||
+      rawPayload.from_number ||
       '';
 
     if (!phone) {
