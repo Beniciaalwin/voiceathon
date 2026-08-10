@@ -24,6 +24,9 @@ export class StatusEngine {
       updatedLead.agent_status = 'failed';
       updatedLead.participated_status = 'failed';
     } else {
+      // Re-engage participant on successful positive call
+      updatedLead.participated_status = 'completed';
+
       // Agent 1: Day 1 — Registration & Onboarding Call
       if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || event.agentId === '456' || !event.agentId) {
         if (isCallSuccess) {
@@ -77,18 +80,6 @@ export class StatusEngine {
       updatedLead.number_status = 'completed';
     }
 
-    // Participation rule
-    if (!isNotInterested && (event.participated || (event.duration && event.duration > 15))) {
-      updatedLead.participated_status = 'completed';
-    } else if (isNotInterested) {
-      updatedLead.participated_status = 'failed';
-    }
-
-    // Email status rule
-    if (event.emailSent || event.event === 'email.sent') {
-      updatedLead.email_status = 'completed';
-    }
-
     // Follow-up requested rule
     if (event.callbackRequired) {
       updatedLead.followup_status = 'pending';
@@ -106,8 +97,8 @@ export class StatusEngine {
    * Deterministic Calculation of Final Status
    */
   public calculateFinalStatus(lead: Lead, latestEvent?: SnapServeNormalizedEvent, isNotInterested: boolean = false): FinalStatus {
-    // If participant expressed lack of interest
-    if (isNotInterested || lead.participated_status === 'failed') {
+    // If latest call expressed lack of interest
+    if (isNotInterested) {
       return 'Not Interested' as any;
     }
 
