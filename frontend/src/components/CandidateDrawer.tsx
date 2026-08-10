@@ -10,6 +10,16 @@ interface CandidateDrawerProps {
   onClose: () => void;
 }
 
+export type TickState = 'verified' | 'not_yet' | 'not_asked';
+
+export interface TickItem {
+  label: string;
+  state: TickState;
+  verifiedLabel?: string;
+  notYetLabel?: string;
+  notAskedLabel?: string;
+}
+
 export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose }) => {
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -32,93 +42,263 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   if (!lead) return null;
 
   const sequenceSteps = [
-    { day: 'Day 1', agentId: 'agent_registration', title: 'Agent #1: Registration & Onboarding', desc: 'Welcome call & registration questions', status: lead.agent_status },
-    { day: 'Day 3', agentId: 'agent_tech_screening', title: 'Agent #2: Tech & Track Screening', desc: 'Tech stack & submission queries', status: lead.cold_call_status },
-    { day: 'Day 5', agentId: 'agent_confirmation', title: 'Agent #3: Attendance Confirmation', desc: 'Confirm team readiness & Discord', status: lead.followup_status },
-    { day: 'Day 7', agentId: 'agent_reminder', title: 'Agent #4: Event Reminder', desc: 'Opening ceremony & portal timing', status: lead.reminder_status },
-    { day: 'Day 8', agentId: 'agent_feedback', title: 'Agent #5: Feedback & Survey', desc: 'Post-hackathon review & survey', status: lead.email_status },
+    { day: 'Day 1', agentId: 'agent_registration', title: 'Agent #1: Day 1 Registration & Onboarding', desc: 'Welcome call, interest & build started', status: lead.agent_status },
+    { day: 'Day 3', agentId: 'agent_tech_screening', title: 'Agent #2: Progress & Support Check', desc: 'Reconnect, stuck points & submission', status: lead.cold_call_status },
+    { day: 'Day 5', agentId: 'agent_confirmation', title: 'Agent #3: Submission Readiness Ticks', desc: 'Tested agent & submission tracking', status: lead.followup_status },
+    { day: 'Day 7', agentId: 'agent_reminder', title: 'Agent #4: Submission Deadline Reminder', desc: 'Final push & platform submission', status: lead.reminder_status },
+    { day: 'Day 8', agentId: 'agent_feedback', title: 'Agent #5: Event Day Readiness Ticks', desc: 'Working number & event logistics', status: lead.email_status },
   ];
 
   const getAgentBadge = (agentId: string) => {
     switch (agentId) {
       case 'agent_registration':
       case 'agent_snapserve_01':
-        return { name: 'Day 1: Agent #1 (Registration)', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+        return { name: 'Agent #1: Day 1 Registration & Onboarding', color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'agent_tech_screening':
       case 'agent_snapserve_02':
-        return { name: 'Day 3: Agent #2 (Tech Screening)', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+        return { name: 'Agent #2: Progress & Support Check', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'agent_confirmation':
-        return { name: 'Day 5: Agent #3 (Attendance Confirmation)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+        return { name: 'Agent #3: Submission Readiness Ticks', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
       case 'agent_reminder':
-        return { name: 'Day 7: Agent #4 (Event Reminder)', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+        return { name: 'Agent #4: Submission Deadline Reminder', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'agent_feedback':
-        return { name: 'Day 8: Agent #5 (Feedback & Survey)', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+        return { name: 'Agent #5: Event Day Readiness Ticks', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
       default:
         return { name: `Agent (${agentId})`, color: 'bg-gray-100 text-gray-800 border-gray-200' };
     }
   };
 
-  // Dedicated tick definitions for each of the 5 Agents
-  const agentSubChecklists = {
+  // Extract LLM parsed ticks from call log if available
+  const latestCall = calls.find(c => c.agent_id === selectedAgentTab || (selectedAgentTab === 'agent_1' && (c.agent_id === 'agent_registration' || c.agent_id === 'agent_snapserve_01')));
+  const llmTicks = latestCall?.raw_webhook_data?.llm_ticks;
+
+  // Exact 5 Voiceathon Agent Checklist Schemas
+  const agentSubChecklists: Record<string, { title: string; subtitle: string; status: string; items: TickItem[] }> = {
     agent_1: {
       title: 'Agent #1: Day 1 Registration & Onboarding Ticks',
-      agentName: 'Agent 1 (Registration)',
+      subtitle: 'Automated AI questions & checklist verification',
       status: lead.agent_status,
       items: [
-        { label: 'Participant Phone Number Carrier Validated', done: lead.number_status === 'completed' },
-        { label: 'Day 1 Welcome Call Connected', done: lead.agent_status === 'completed' },
-        { label: 'Hackathon Track & Registration Questions Answered', done: lead.agent_status === 'completed' },
-        { label: 'Onboarding Starter Guide & Discord Email Dispatched', done: lead.agent_status === 'completed' || lead.email_status === 'completed' },
-        { label: 'No Callback Escalation Pending', done: lead.agent_status === 'completed' },
+        {
+          label: 'Day 1 Welcome Call Connected',
+          state: llmTicks?.agent1?.welcomeConnected || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Connected',
+        },
+        {
+          label: 'Interested in Participating',
+          state: llmTicks?.agent1?.interestedInParticipating || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Confirmed',
+          notYetLabel: '🔴 Not Interested',
+        },
+        {
+          label: 'Phone Number Purchased',
+          state: llmTicks?.agent1?.phoneNumberPurchased || (lead.number_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Agent Build Started',
+          state: llmTicks?.agent1?.agentBuildStarted || (lead.agent_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Aug 21 Deadline (Number + Build + Submission) Clearly Conveyed',
+          state: llmTicks?.agent1?.aug21DeadlineConveyed || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet Covered',
+        },
       ],
     },
+
     agent_2: {
-      title: 'Agent #2: Day 3 Tech & Track Screening Ticks',
-      agentName: 'Agent 2 (Tech Check)',
+      title: 'Agent #2: Progress & Support Check Ticks',
+      subtitle: 'Automated AI questions & checklist verification',
       status: lead.cold_call_status,
       items: [
-        { label: 'Day 3 Tech Screening Call Completed', done: lead.cold_call_status === 'completed' },
-        { label: 'Project Architecture & Custom LLM API Verified', done: lead.cold_call_status === 'completed' },
-        { label: 'Team Size & GitHub Repository Guidelines Confirmed', done: lead.cold_call_status === 'completed' },
-        { label: 'Technical Mentor Escalation Checked', done: lead.cold_call_status === 'completed' },
+        {
+          label: 'Reconnect Call Connected',
+          state: llmTicks?.agent2?.reconnectConnected || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Connected',
+        },
+        {
+          label: 'Phone Number Purchased (carried from Call 1)',
+          state: llmTicks?.agent2?.phoneNumberPurchased || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Agent Build Completed (carried from Call 1)',
+          state: llmTicks?.agent2?.agentBuildCompleted || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Help Offered on Stuck Points',
+          state: llmTicks?.agent2?.helpOfferedStuckPoints || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notAskedLabel: '⚪ Not Applicable',
+        },
+        {
+          label: 'Submission Requirement Reconfirmed',
+          state: llmTicks?.agent2?.submissionRequirementReconfirmed || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet Covered',
+        },
       ],
     },
+
     agent_3: {
-      title: 'Agent #3: Day 5 Attendance & Discord Ticks',
-      agentName: 'Agent 3 (Attendance)',
+      title: 'Agent #3: Submission Readiness Ticks',
+      subtitle: 'Automated AI questions & checklist verification',
       status: lead.followup_status,
       items: [
-        { label: 'Day 5 Confirmation Call Connected', done: lead.followup_status === 'completed' },
-        { label: 'Final Hackathon Participation Confirmed', done: lead.followup_status === 'completed' || lead.participated_status === 'completed' },
-        { label: 'Discord Handle & Team Channel Joined', done: lead.followup_status === 'completed' },
-        { label: 'Dev Environment & Hardware Readiness Checked', done: lead.followup_status === 'completed' },
+        {
+          label: 'Reconnect Call Connected',
+          state: llmTicks?.agent3?.reconnectConnected || (lead.followup_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Connected',
+        },
+        {
+          label: 'Phone Number Purchased (carried)',
+          state: llmTicks?.agent3?.phoneNumberPurchased || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Agent Build Completed (carried)',
+          state: llmTicks?.agent3?.agentBuildCompleted || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Agent Tested',
+          state: llmTicks?.agent3?.agentTested || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Submission Tracking Status',
+          state: llmTicks?.agent3?.submissionOnTrack || (lead.followup_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ On Track',
+          notYetLabel: '🔴 At Risk',
+        },
       ],
     },
+
     agent_4: {
-      title: 'Agent #4: Day 7 Ceremony & Event Reminder Ticks',
-      agentName: 'Agent 4 (Reminder)',
+      title: 'Agent #4: Submission Deadline Reminder Ticks',
+      subtitle: 'Automated AI questions & checklist verification',
       status: lead.reminder_status,
       items: [
-        { label: 'Day 7 Opening Ceremony Reminder Delivered', done: lead.reminder_status === 'completed' },
-        { label: 'Ceremony Zoom / Venue Schedule Acknowledged', done: lead.reminder_status === 'completed' },
-        { label: 'Project Submission Portal Access Verified', done: lead.reminder_status === 'completed' },
-        { label: '24-Hour Hackathon Countdown Confirmed', done: lead.reminder_status === 'completed' },
+        {
+          label: 'Reconnect Call Connected',
+          state: llmTicks?.agent4?.reconnectConnected || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Connected',
+        },
+        {
+          label: 'Phone Number Purchased (carried, final push)',
+          state: llmTicks?.agent4?.phoneNumberPurchased || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Agent Build Completed (carried, final push)',
+          state: llmTicks?.agent4?.agentBuildCompleted || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Submitted on Platform (mandatory, final push)',
+          state: llmTicks?.agent4?.submittedOnPlatform || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet',
+          notAskedLabel: '⚪ Not Asked',
+        },
+        {
+          label: 'Callback Number Offered for Last-Minute Doubts',
+          state: llmTicks?.agent4?.callbackOfferedDoubts || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Yet Offered',
+        },
       ],
     },
+
     agent_5: {
-      title: 'Agent #5: Day 8 Post-Hackathon Feedback Ticks',
-      agentName: 'Agent 5 (Feedback)',
+      title: 'Agent #5: Event Day Readiness Ticks',
+      subtitle: 'Automated AI questions & checklist verification',
       status: lead.email_status,
       items: [
-        { label: 'Day 8 Post-Hackathon Survey Call Completed', done: lead.email_status === 'completed' },
-        { label: 'Event & AI Voice Experience Rating Recorded', done: lead.email_status === 'completed' },
-        { label: 'Final Project Demo Video Submission Verified', done: lead.email_status === 'completed' },
-        { label: 'Participation Certificate Email Dispatched', done: lead.email_status === 'completed' },
+        {
+          label: 'Reconnect Call Connected',
+          state: llmTicks?.agent5?.reconnectConnected || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Connected',
+        },
+        {
+          label: 'Phone Number Working (final confirmation)',
+          state: llmTicks?.agent5?.phoneNumberWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Working',
+        },
+        {
+          label: 'Agent Working (final confirmation)',
+          state: llmTicks?.agent5?.agentWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Working',
+        },
+        {
+          label: 'Submission Confirmed on File (final confirmation)',
+          state: llmTicks?.agent5?.submissionConfirmedOnFile || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Found',
+        },
+        {
+          label: 'Event Logistics (Location / Time) Reconfirmed',
+          state: llmTicks?.agent5?.eventLogisticsReconfirmed || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          verifiedLabel: '✅ Verified',
+          notYetLabel: '🔴 Not Confirmed',
+        },
       ],
     },
   };
 
   const selectedChecklist = agentSubChecklists[selectedAgentTab];
+  const verifiedCount = selectedChecklist.items.filter(i => i.state === 'verified').length;
+
+  const renderBadge = (item: TickItem) => {
+    if (item.state === 'verified') {
+      return (
+        <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/80 text-[11px] shadow-xs">
+          {item.verifiedLabel || '✅ Verified'}
+        </span>
+      );
+    }
+    if (item.state === 'not_yet') {
+      return (
+        <span className="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/80 text-[11px] shadow-xs">
+          {item.notYetLabel || '🔴 Not Yet'}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 text-[11px]">
+        {item.notAskedLabel || '⚪ Not Asked'}
+      </span>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -187,7 +367,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                5 Agents Verification Ticks
+                5-Agent Voiceathon Ticks
               </button>
               <button
                 onClick={() => setActiveTab('calls')}
@@ -197,7 +377,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                Call Logs & Transcripts ({calls.length})
+                Call History & Transcripts ({calls.length})
               </button>
               <button
                 onClick={() => setActiveTab('journey')}
@@ -207,7 +387,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                Journey
+                Multi-Day Journey
               </button>
             </div>
 
@@ -221,75 +401,72 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                 </div>
               ) : (
                 <>
-                  {/* TAB 1: INTERACTIVE 5-AGENT TICKS SELECTOR */}
+                  {/* TAB 1: 5-AGENT VOICEATHON TICKS */}
                   {activeTab === 'agent_ticks' && (
                     <div className="space-y-5">
-                      {/* Clickable 5-Agent Pill Bar */}
+                      {/* Clickable 5-Agent Selector Bar */}
                       <div>
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-2">
-                          Click any Agent to inspect verified ticks:
+                          Select Agent to inspect Voiceathon checklist:
                         </span>
-                        <div className="grid grid-cols-5 gap-1.5 bg-gray-100/70 p-1.5 rounded-xl border border-gray-200/80">
+                        <div className="grid grid-cols-5 gap-1 bg-gray-100/80 p-1.5 rounded-xl border border-gray-200/80">
                           {[
-                            { id: 'agent_1', label: 'Agent 1', sub: 'Reg' },
-                            { id: 'agent_2', label: 'Agent 2', sub: 'Tech' },
-                            { id: 'agent_3', label: 'Agent 3', sub: 'Confirm' },
-                            { id: 'agent_4', label: 'Agent 4', sub: 'Remind' },
-                            { id: 'agent_5', label: 'Agent 5', sub: 'Survey' },
+                            { id: 'agent_1', label: 'Agent 1', sub: 'Day 1' },
+                            { id: 'agent_2', label: 'Agent 2', sub: 'Day 3' },
+                            { id: 'agent_3', label: 'Agent 3', sub: 'Day 5' },
+                            { id: 'agent_4', label: 'Agent 4', sub: 'Day 7' },
+                            { id: 'agent_5', label: 'Agent 5', sub: 'Day 8' },
                           ].map((ag) => {
                             const isSelected = selectedAgentTab === ag.id;
-                            const agStatus = agentSubChecklists[ag.id as keyof typeof agentSubChecklists].status;
                             return (
                               <button
                                 key={ag.id}
                                 onClick={() => setSelectedAgentTab(ag.id as any)}
                                 className={`py-2 px-1 rounded-lg text-center transition-all ${
                                   isSelected
-                                    ? 'bg-purple-900 text-white font-bold shadow-sm'
+                                    ? 'bg-purple-900 text-white font-bold shadow-xs'
                                     : 'bg-white hover:bg-gray-50 text-gray-700 font-semibold border border-gray-200'
                                 }`}
                               >
                                 <div className="text-[11px] leading-tight">{ag.label}</div>
-                                <div className="text-[9px] opacity-80 font-normal">{ag.sub}</div>
+                                <div className="text-[9px] opacity-75 font-normal">{ag.sub}</div>
                               </button>
                             );
                           })}
                         </div>
                       </div>
 
-                      {/* Selected Agent Verification Ticks Card */}
-                      <div className="bg-gradient-to-br from-purple-50/40 via-white to-gray-50 border border-purple-200/90 rounded-2xl p-5 shadow-subtle space-y-4">
+                      {/* Selected Agent Voiceathon Checklist Card */}
+                      <div className="bg-gradient-to-br from-purple-50/30 via-white to-gray-50 border border-purple-200/80 rounded-2xl p-5 shadow-subtle space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h3 className="text-sm font-bold text-gray-900">{selectedChecklist.title}</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">Automated AI questions & checklist verification</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{selectedChecklist.subtitle}</p>
                           </div>
                           <StatusBadge status={selectedChecklist.status} size="md" />
                         </div>
 
-                        {/* Verified Sub-Items */}
+                        {/* 5 Voiceathon Checklist Items */}
                         <div className="space-y-2 pt-1">
                           {selectedChecklist.items.map((item, idx) => (
                             <div
                               key={idx}
                               className="flex items-center justify-between text-xs bg-white px-3.5 py-2.5 rounded-xl border border-gray-200/80 shadow-subtle"
                             >
-                              <span className="text-gray-800 font-medium">{item.label}</span>
-                              {item.done ? (
-                                <span className="inline-flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 text-[11px]">
-                                  <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Verified
-                                </span>
-                              ) : (
-                                <span className="text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-200 text-[11px]">
-                                  Pending
-                                </span>
-                              )}
+                              <span className="text-gray-800 font-medium pr-2">{item.label}</span>
+                              {renderBadge(item)}
                             </div>
                           ))}
                         </div>
 
-                        <div className="text-[11px] text-gray-400 bg-gray-50 p-2.5 rounded-lg border border-gray-100 font-mono text-center">
-                          Completed: {selectedChecklist.items.filter(i => i.done).length} / {selectedChecklist.items.length} Ticks Verified
+                        {/* Completed Ticks Counter Bar */}
+                        <div className="flex items-center justify-between bg-purple-50/60 p-3 rounded-xl border border-purple-100 font-mono text-xs">
+                          <span className="font-semibold text-purple-950">
+                            Completed: {verifiedCount} / {selectedChecklist.items.length} Ticks Verified
+                          </span>
+                          <span className="text-[11px] bg-purple-900 text-white font-bold px-2 py-0.5 rounded">
+                            Voiceathon Certified
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -301,7 +478,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                       <div className="flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                           <Layers className="w-4 h-4 text-purple-600" />
-                          <span>5 AI Agents Call History ({calls.length} total calls)</span>
+                          <span>5 AI Agents Call History ({calls.length} calls)</span>
                         </h3>
                       </div>
 
