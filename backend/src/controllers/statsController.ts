@@ -5,27 +5,33 @@ export class StatsController {
   public getDashboardStats = async (req: Request, res: Response): Promise<void> => {
     try {
       if (isSupabaseConfigured && supabase) {
-        // Query database stats
-        const { count: totalLeads } = await supabase.from('leads').select('*', { count: 'exact', head: true });
-        const { count: callsCompleted } = await supabase.from('call_logs').select('*', { count: 'exact', head: true }).eq('call_status', 'completed');
-        const { count: followupsPending } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('final_status', 'Follow-up Pending');
-        const { count: completed } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('final_status', 'Completed');
-        const { count: failedCalls } = await supabase.from('leads').select('*', { count: 'exact', head: true }).or('final_status.eq.Call Failed,cold_call_status.eq.failed');
+        try {
+          const { count: totalLeads, error: e1 } = await supabase.from('leads').select('*', { count: 'exact', head: true });
+          if (e1) throw e1;
 
-        res.json({
-          success: true,
-          stats: {
-            totalLeads: totalLeads || 0,
-            callsCompleted: callsCompleted || 0,
-            followupsPending: followupsPending || 0,
-            completed: completed || 0,
-            failedCalls: failedCalls || 0,
-          },
-        });
-      } else {
-        const stats = inMemoryDB.getStats();
-        res.json({ success: true, stats });
+          const { count: callsCompleted } = await supabase.from('call_logs').select('*', { count: 'exact', head: true }).eq('call_status', 'completed');
+          const { count: followupsPending } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('final_status', 'Follow-up Pending');
+          const { count: completed } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('final_status', 'Completed');
+          const { count: failedCalls } = await supabase.from('leads').select('*', { count: 'exact', head: true }).or('final_status.eq.Call Failed,cold_call_status.eq.failed');
+
+          res.json({
+            success: true,
+            stats: {
+              totalLeads: totalLeads || 0,
+              callsCompleted: callsCompleted || 0,
+              followupsPending: followupsPending || 0,
+              completed: completed || 0,
+              failedCalls: failedCalls || 0,
+            },
+          });
+          return;
+        } catch (dbErr: any) {
+          console.warn('[Supabase Stats Query Error] Falling back to inMemoryDB:', dbErr.message);
+        }
       }
+
+      const stats = inMemoryDB.getStats();
+      res.json({ success: true, stats });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
