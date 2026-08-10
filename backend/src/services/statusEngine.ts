@@ -10,6 +10,7 @@ export class StatusEngine {
     const outcome = (event.outcome || '').toLowerCase();
     const summary = (event.summary || '').toLowerCase();
     const transcript = (event.transcript || '').toLowerCase();
+    const agId = (event.agentId || '').toLowerCase();
 
     const isNotInterested =
       outcome.includes('not_interested') ||
@@ -27,46 +28,52 @@ export class StatusEngine {
       // Re-engage participant on successful positive call
       updatedLead.participated_status = 'completed';
 
+      const isAgent1 = agId === 'agent_registration' || agId === 'agent_snapserve_01' || agId === '456' || agId === 'agent_1' || agId.includes('agent1') || agId.includes('agent 1') || agId.includes('registration') || !agId;
+      const isAgent2 = agId === 'agent_tech_screening' || agId === 'agent_snapserve_02' || agId === '457' || agId === 'agent_2' || agId.includes('agent2') || agId.includes('agent 2') || agId.includes('tech') || agId.includes('screening') || agId.includes('progress') || agId.includes('support');
+      const isAgent3 = agId === 'agent_confirmation' || agId === '458' || agId === 'agent_3' || agId.includes('agent3') || agId.includes('agent 3') || agId.includes('confirmation') || agId.includes('readiness');
+      const isAgent4 = agId === 'agent_reminder' || agId === '459' || agId === 'agent_4' || agId.includes('agent4') || agId.includes('agent 4') || agId.includes('reminder') || agId.includes('deadline');
+      const isAgent5 = agId === 'agent_feedback' || agId === '460' || agId === 'agent_5' || agId.includes('agent5') || agId.includes('agent 5') || agId.includes('feedback') || agId.includes('event day');
+
       // Agent 1: Day 1 — Registration & Onboarding Call
-      if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || event.agentId === '456' || !event.agentId) {
+      if (isAgent1) {
         if (isCallSuccess) {
           updatedLead.agent_status = 'completed'; // Green Tick ✓ for Agent 1!
         } else {
-          updatedLead.agent_status = 'failed'; // Red 🔴 for Agent 1!
+          updatedLead.agent_status = 'failed';
         }
       }
 
       // Agent 2: Day 3 — Tech & Track Screening Call
-      if (event.agentId === 'agent_tech_screening' || event.agentId === 'agent_snapserve_02') {
+      if (isAgent2) {
         if (isCallSuccess) {
-          updatedLead.cold_call_status = 'completed';
+          updatedLead.cold_call_status = 'completed'; // Green Tick ✓ for Agent 2!
         } else {
           updatedLead.cold_call_status = 'failed';
         }
       }
 
       // Agent 3: Day 5 — Attendance & Discord Confirmation Call
-      if (event.agentId === 'agent_confirmation') {
+      if (isAgent3) {
         if (isCallSuccess) {
-          updatedLead.followup_status = 'completed';
+          updatedLead.followup_status = 'completed'; // Green Tick ✓ for Agent 3!
         } else {
           updatedLead.followup_status = 'failed';
         }
       }
 
       // Agent 4: Day 7 — Opening Ceremony & Event Reminder Call
-      if (event.agentId === 'agent_reminder') {
+      if (isAgent4) {
         if (isCallSuccess) {
-          updatedLead.reminder_status = 'completed';
+          updatedLead.reminder_status = 'completed'; // Green Tick ✓ for Agent 4!
         } else {
           updatedLead.reminder_status = 'failed';
         }
       }
 
       // Agent 5: Day 8 — Post-Hackathon Feedback & Survey Call
-      if (event.agentId === 'agent_feedback') {
+      if (isAgent5) {
         if (isCallSuccess) {
-          updatedLead.email_status = 'completed';
+          updatedLead.email_status = 'completed'; // Green Tick ✓ for Agent 5!
         } else {
           updatedLead.email_status = 'failed';
         }
@@ -133,7 +140,7 @@ export class StatusEngine {
     }
 
     // Default to Participated if at least Agent 1 is completed
-    if (lead.agent_status === 'completed') {
+    if (lead.agent_status === 'completed' || lead.cold_call_status === 'completed') {
       return 'Participated';
     }
 

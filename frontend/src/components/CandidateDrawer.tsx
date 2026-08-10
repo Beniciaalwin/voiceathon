@@ -50,30 +50,45 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   ];
 
   const getAgentBadge = (agentId: string) => {
-    switch (agentId) {
-      case 'agent_registration':
-      case 'agent_snapserve_01':
-      case '456':
-        return { name: 'Agent #1: Day 1 Registration & Onboarding', color: 'bg-blue-100 text-blue-800 border-blue-200' };
-      case 'agent_tech_screening':
-      case 'agent_snapserve_02':
-        return { name: 'Agent #2: Progress & Support Check', color: 'bg-purple-100 text-purple-800 border-purple-200' };
-      case 'agent_confirmation':
-        return { name: 'Agent #3: Submission Readiness Ticks', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
-      case 'agent_reminder':
-        return { name: 'Agent #4: Submission Deadline Reminder', color: 'bg-amber-100 text-amber-800 border-amber-200' };
-      case 'agent_feedback':
-        return { name: 'Agent #5: Event Day Readiness Ticks', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
-      default:
-        return { name: `Agent (${agentId})`, color: 'bg-gray-100 text-gray-800 border-gray-200' };
+    const ag = (agentId || '').toLowerCase();
+    if (ag === 'agent_registration' || ag === 'agent_snapserve_01' || ag === '456' || ag.includes('agent1') || ag.includes('agent 1') || ag.includes('registration')) {
+      return { name: 'Agent #1: Day 1 Registration & Onboarding', color: 'bg-blue-100 text-blue-800 border-blue-200' };
     }
+    if (ag === 'agent_tech_screening' || ag === 'agent_snapserve_02' || ag === '457' || ag.includes('agent2') || ag.includes('agent 2') || ag.includes('tech') || ag.includes('screening') || ag.includes('progress') || ag.includes('support')) {
+      return { name: 'Agent #2: Progress & Support Check', color: 'bg-purple-100 text-purple-800 border-purple-200' };
+    }
+    if (ag === 'agent_confirmation' || ag === '458' || ag.includes('agent3') || ag.includes('agent 3') || ag.includes('confirmation')) {
+      return { name: 'Agent #3: Submission Readiness Ticks', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    }
+    if (ag === 'agent_reminder' || ag === '459' || ag.includes('agent4') || ag.includes('agent 4') || ag.includes('reminder')) {
+      return { name: 'Agent #4: Submission Deadline Reminder', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+    }
+    if (ag === 'agent_feedback' || ag === '460' || ag.includes('agent5') || ag.includes('agent 5') || ag.includes('feedback')) {
+      return { name: 'Agent #5: Event Day Readiness Ticks', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+    }
+    return { name: `Agent (${agentId})`, color: 'bg-gray-100 text-gray-800 border-gray-200' };
   };
 
   // Find latest call log for the selected agent tab
-  const latestCall = calls.find(c =>
-    c.agent_id === selectedAgentTab ||
-    (selectedAgentTab === 'agent_1' && (c.agent_id === 'agent_registration' || c.agent_id === 'agent_snapserve_01' || c.agent_id === '456'))
-  ) || calls[0];
+  const latestCall = calls.find(c => {
+    const ag = (c.agent_id || '').toLowerCase();
+    if (selectedAgentTab === 'agent_1') {
+      return ag === 'agent_1' || ag === 'agent_registration' || ag === 'agent_snapserve_01' || ag === '456' || ag.includes('agent1') || ag.includes('agent 1') || ag.includes('registration');
+    }
+    if (selectedAgentTab === 'agent_2') {
+      return ag === 'agent_2' || ag === 'agent_tech_screening' || ag === 'agent_snapserve_02' || ag === '457' || ag.includes('agent2') || ag.includes('agent 2') || ag.includes('tech') || ag.includes('screening') || ag.includes('progress') || ag.includes('support');
+    }
+    if (selectedAgentTab === 'agent_3') {
+      return ag === 'agent_3' || ag === 'agent_confirmation' || ag === '458' || ag.includes('agent3') || ag.includes('agent 3') || ag.includes('confirmation');
+    }
+    if (selectedAgentTab === 'agent_4') {
+      return ag === 'agent_4' || ag === 'agent_reminder' || ag === '459' || ag.includes('agent4') || ag.includes('agent 4') || ag.includes('reminder');
+    }
+    if (selectedAgentTab === 'agent_5') {
+      return ag === 'agent_5' || ag === 'agent_feedback' || ag === '460' || ag.includes('agent5') || ag.includes('agent 5') || ag.includes('feedback');
+    }
+    return false;
+  }) || calls[0];
 
   const isCallFailed = Boolean(latestCall && (latestCall.call_status === 'failed' || latestCall.outcome === 'unreachable' || latestCall.outcome === 'failed'));
   const isCallConnected = Boolean(latestCall && !isCallFailed && (latestCall.duration > 0 || latestCall.call_status === 'completed'));
@@ -101,7 +116,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       callText.includes('bought a number') ||
       callText.includes('phone number purchased');
 
-    if (llmTicks?.agent1?.phoneNumberPurchased === true || textConfirmsPhone) return 'verified';
+    if (llmTicks?.agent1?.phoneNumberPurchased === true || llmTicks?.agent2?.phoneNumberPurchased === true || textConfirmsPhone) return 'verified';
     if (llmTicks?.agent1?.phoneNumberPurchased === false || llmTicks?.agent1?.phoneValidated === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
@@ -112,9 +127,10 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       callText.includes('build started') ||
       callText.includes('agent build') ||
       callText.includes('started building') ||
-      callText.includes('built agent');
+      callText.includes('built agent') ||
+      callText.includes('building an agent');
 
-    if (llmTicks?.agent1?.agentBuildStarted === true || textConfirmsBuild) return 'verified';
+    if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || textConfirmsBuild) return 'verified';
     if (llmTicks?.agent1?.agentBuildStarted === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
@@ -125,9 +141,10 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       callText.includes('aug 21') ||
       callText.includes('august 21') ||
       callText.includes('deadline conveyed') ||
-      callText.includes('deadline explained');
+      callText.includes('deadline explained') ||
+      callText.includes('21 august');
 
-    if (llmTicks?.agent1?.aug21DeadlineConveyed === true || textConfirmsDeadline) return 'verified';
+    if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || textConfirmsDeadline) return 'verified';
     if (llmTicks?.agent1?.aug21DeadlineConveyed === false || isNotInterested) return 'not_yet';
     return 'not_yet';
   })();
@@ -194,20 +211,20 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
         },
         {
           label: 'Agent Build Completed (carried from Call 1)',
-          state: isNotInterested ? 'not_yet' : 'not_asked',
+          state: agentBuildStartedTick,
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Help Offered on Stuck Points',
-          state: 'not_asked',
+          state: isCallConnected && !isNotInterested ? 'verified' : 'not_asked',
           verifiedLabel: '✅ Verified',
           notAskedLabel: '⚪ Not Applicable',
         },
         {
           label: 'Submission Requirement Reconfirmed',
-          state: isNotInterested ? 'not_yet' : 'not_yet',
+          state: deadlineConveyedTick,
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet Covered',
         },
@@ -234,7 +251,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
         },
         {
           label: 'Agent Build Completed (carried)',
-          state: isNotInterested ? 'not_yet' : 'not_asked',
+          state: agentBuildStartedTick,
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
@@ -275,7 +292,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
         },
         {
           label: 'Agent Build Completed (carried, final push)',
-          state: isNotInterested ? 'not_yet' : 'not_asked',
+          state: agentBuildStartedTick,
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
