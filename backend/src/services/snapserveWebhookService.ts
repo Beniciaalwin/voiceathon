@@ -90,14 +90,22 @@ export class SnapServeWebhookService {
     const transcript =
       rawPayload.transcript ||
       rawPayload.call_transcript ||
+      rawPayload.transcript_text ||
       rawPayload.concatenated_transcript ||
+      rawPayload.dialogue ||
+      rawPayload.text ||
       '';
 
     // Extract summary
     const summary =
       rawPayload.summary ||
+      rawPayload.call_summary ||
+      rawPayload.summary_text ||
       rawPayload.call_analysis?.call_summary ||
+      rawPayload.call_analysis?.summary ||
+      rawPayload.analysis?.summary ||
       rawPayload.ai_summary ||
+      rawPayload.details ||
       '';
 
     // Extract callback requirements
