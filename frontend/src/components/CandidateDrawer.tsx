@@ -70,6 +70,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
 
   // Extract LLM parsed ticks from call log if available
   const latestCall = calls.find(c => c.agent_id === selectedAgentTab || (selectedAgentTab === 'agent_1' && (c.agent_id === 'agent_registration' || c.agent_id === 'agent_snapserve_01')));
+  const isCallFailed = latestCall?.call_status === 'failed' || latestCall?.outcome === 'unreachable' || latestCall?.outcome === 'failed';
   const llmTicks = latestCall?.raw_webhook_data?.llm_ticks;
 
   // Exact 5 Voiceathon Agent Checklist Schemas
@@ -81,33 +82,33 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       items: [
         {
           label: 'Day 1 Welcome Call Connected',
-          state: llmTicks?.agent1?.welcomeConnected || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent1?.welcomeConnected || (lead.agent_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Connected',
         },
         {
           label: 'Interested in Participating',
-          state: llmTicks?.agent1?.interestedInParticipating || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent1?.interestedInParticipating || (lead.agent_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Confirmed',
           notYetLabel: '🔴 Not Interested',
         },
         {
           label: 'Phone Number Purchased',
-          state: llmTicks?.agent1?.phoneNumberPurchased || (lead.number_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent1?.phoneNumberPurchased || (lead.number_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Build Started',
-          state: llmTicks?.agent1?.agentBuildStarted || (lead.agent_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent1?.agentBuildStarted || (lead.agent_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Aug 21 Deadline (Number + Build + Submission) Clearly Conveyed',
-          state: llmTicks?.agent1?.aug21DeadlineConveyed || (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent1?.aug21DeadlineConveyed || (lead.agent_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet Covered',
         },
@@ -121,33 +122,33 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       items: [
         {
           label: 'Reconnect Call Connected',
-          state: llmTicks?.agent2?.reconnectConnected || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent2?.reconnectConnected || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Connected',
         },
         {
           label: 'Phone Number Purchased (carried from Call 1)',
-          state: llmTicks?.agent2?.phoneNumberPurchased || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent2?.phoneNumberPurchased || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Build Completed (carried from Call 1)',
-          state: llmTicks?.agent2?.agentBuildCompleted || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent2?.agentBuildCompleted || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Help Offered on Stuck Points',
-          state: llmTicks?.agent2?.helpOfferedStuckPoints || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_asked' : (llmTicks?.agent2?.helpOfferedStuckPoints || (lead.cold_call_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notAskedLabel: '⚪ Not Applicable',
         },
         {
           label: 'Submission Requirement Reconfirmed',
-          state: llmTicks?.agent2?.submissionRequirementReconfirmed || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent2?.submissionRequirementReconfirmed || (lead.cold_call_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet Covered',
         },
@@ -161,34 +162,34 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       items: [
         {
           label: 'Reconnect Call Connected',
-          state: llmTicks?.agent3?.reconnectConnected || (lead.followup_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent3?.reconnectConnected || (lead.followup_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Connected',
         },
         {
           label: 'Phone Number Purchased (carried)',
-          state: llmTicks?.agent3?.phoneNumberPurchased || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent3?.phoneNumberPurchased || (lead.followup_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Build Completed (carried)',
-          state: llmTicks?.agent3?.agentBuildCompleted || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent3?.agentBuildCompleted || (lead.followup_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Tested',
-          state: llmTicks?.agent3?.agentTested || (lead.followup_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent3?.agentTested || (lead.followup_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Submission Tracking Status',
-          state: llmTicks?.agent3?.submissionOnTrack || (lead.followup_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent3?.submissionOnTrack || (lead.followup_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ On Track',
           notYetLabel: '🔴 At Risk',
         },
@@ -202,34 +203,34 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       items: [
         {
           label: 'Reconnect Call Connected',
-          state: llmTicks?.agent4?.reconnectConnected || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent4?.reconnectConnected || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Connected',
         },
         {
           label: 'Phone Number Purchased (carried, final push)',
-          state: llmTicks?.agent4?.phoneNumberPurchased || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent4?.phoneNumberPurchased || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Build Completed (carried, final push)',
-          state: llmTicks?.agent4?.agentBuildCompleted || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent4?.agentBuildCompleted || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Submitted on Platform (mandatory, final push)',
-          state: llmTicks?.agent4?.submittedOnPlatform || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent4?.submittedOnPlatform || (lead.reminder_status === 'completed' ? 'verified' : 'not_asked')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Callback Number Offered for Last-Minute Doubts',
-          state: llmTicks?.agent4?.callbackOfferedDoubts || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent4?.callbackOfferedDoubts || (lead.reminder_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Yet Offered',
         },
@@ -243,31 +244,31 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       items: [
         {
           label: 'Reconnect Call Connected',
-          state: llmTicks?.agent5?.reconnectConnected || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent5?.reconnectConnected || (lead.email_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Connected',
         },
         {
           label: 'Phone Number Working (final confirmation)',
-          state: llmTicks?.agent5?.phoneNumberWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent5?.phoneNumberWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Working',
         },
         {
           label: 'Agent Working (final confirmation)',
-          state: llmTicks?.agent5?.agentWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent5?.agentWorking || (lead.email_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Working',
         },
         {
           label: 'Submission Confirmed on File (final confirmation)',
-          state: llmTicks?.agent5?.submissionConfirmedOnFile || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent5?.submissionConfirmedOnFile || (lead.email_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Found',
         },
         {
           label: 'Event Logistics (Location / Time) Reconfirmed',
-          state: llmTicks?.agent5?.eventLogisticsReconfirmed || (lead.email_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isCallFailed ? 'not_yet' : (llmTicks?.agent5?.eventLogisticsReconfirmed || (lead.email_status === 'completed' ? 'verified' : 'not_yet')),
           verifiedLabel: '✅ Verified',
           notYetLabel: '🔴 Not Confirmed',
         },
