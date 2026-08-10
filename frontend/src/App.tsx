@@ -11,7 +11,7 @@ import { fetchLeads, fetchDashboardStats } from './lib/api';
 import { subscribeToRealtimeUpdates } from './lib/supabase';
 import { Bell, Sparkles, Trophy } from 'lucide-react';
 
-export function App() {
+export default function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +65,24 @@ export function App() {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  // Keep selectedLead in sync with updated leads array
+  useEffect(() => {
+    if (selectedLead) {
+      const updated = leads.find((l) => l.id === selectedLead.id || l.phone === selectedLead.phone);
+      if (updated && (updated.final_status !== selectedLead.final_status || updated.agent_status !== selectedLead.agent_status || updated.updated_at !== selectedLead.updated_at)) {
+        setSelectedLead(updated);
+      }
+    }
+  }, [leads, selectedLead]);
+
+  // 3-Second Automatic Realtime Polling Fallback
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      loadDashboardData();
+    }, 3000);
+    return () => clearInterval(pollInterval);
+  }, [loadDashboardData]);
+
   // Subscribe to Supabase Realtime / WebSocket events
   useEffect(() => {
     const unsubscribe = subscribeToRealtimeUpdates((eventData) => {
@@ -108,19 +126,19 @@ export function App() {
         {/* Lead Table Header & Actions */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-gray-900 tracking-tight">Hackathon Participant Voice Monitor</h2>
-              <p className="text-xs text-gray-500">Realtime participant confirmation & call pipeline synchronized via SnapServe webhooks</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <span>Hackathon Participant Voice Monitor</span>
+              </h2>
+              <span className="bg-purple-100 text-purple-900 border border-purple-200 font-semibold text-[11px] px-2 py-0.5 rounded-full">
+                Realtime Sync Active
+              </span>
             </div>
-
-            {/* Quick Demo Pill */}
-            <div className="hidden sm:flex items-center gap-2 text-xs bg-purple-50/80 text-purple-700 px-3 py-1.5 rounded-lg border border-purple-100 font-medium">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" />
-              <span>Voiceathon Live Status Engine Active</span>
-            </div>
+            <p className="text-xs text-gray-500">
+              Realtime participant confirmation & call pipeline synchronized via SnapServe webhooks
+            </p>
           </div>
 
-          {/* Filter, Search & Sorting Bar */}
           <FilterBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -132,49 +150,45 @@ export function App() {
             onSortByChange={setSortBy}
             totalResults={leads.length}
           />
-
-          {/* Main Lead Table */}
-          <LeadTable
-            leads={leads}
-            loading={loading}
-            onSelectLead={(lead) => setSelectedLead(lead)}
-            selectedLeadId={selectedLead?.id}
-          />
         </div>
+
+        {/* Main Participants Lead Table */}
+        <LeadTable
+          leads={leads}
+          loading={loading}
+          onSelectLead={(lead) => setSelectedLead(lead)}
+        />
       </main>
 
-      {/* Slide-over Candidate Details Drawer */}
-      <CandidateDrawer lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      {/* Slide-over Candidate Drawer */}
+      <CandidateDrawer
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+      />
 
-      {/* Developer Webhook Logs Modal */}
-      <WebhookLogsModal isOpen={isWebhookLogsOpen} onClose={() => setIsWebhookLogsOpen(false)} />
+      {/* Webhook Logs Modal */}
+      <WebhookLogsModal
+        isOpen={isWebhookLogsOpen}
+        onClose={() => setIsWebhookLogsOpen(false)}
+      />
 
       {/* Webhook Simulator Modal */}
       <WebhookSimulatorModal
         isOpen={isSimulatorOpen}
         onClose={() => setIsSimulatorOpen(false)}
-        onSuccess={(msg) => showToast(msg)}
+        onSuccess={(msg) => {
+          showToast(msg);
+          loadDashboardData();
+        }}
       />
 
-      {/* Toast Notification */}
+      {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-gray-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-2xl border border-gray-800 animate-bounce">
-          <Bell className="w-4 h-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-medium animate-bounce border border-gray-700">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Dashboard Footer */}
-      <footer className="border-t border-gray-200/80 bg-white py-4 mt-12 text-center text-xs text-gray-400">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between px-6 gap-2">
-          <span>SnapServe AI Voice &mdash; Hackathon Edition &copy; 2026</span>
-          <span className="font-mono text-[11px] text-gray-500">
-            Webhook URL: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">POST /api/webhooks/snapserve</code>
-          </span>
-        </div>
-      </footer>
     </div>
   );
 }
-
-export default App;
