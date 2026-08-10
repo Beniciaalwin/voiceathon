@@ -9,7 +9,8 @@ export type FinalStatus =
   | 'Participated'
   | 'Completed'
   | 'Call Failed'
-  | 'Invalid Number';
+  | 'Invalid Number'
+  | 'Not Interested';
 
 export interface Lead {
   id: string;

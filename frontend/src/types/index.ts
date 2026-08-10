@@ -9,7 +9,8 @@ export type FinalStatus =
   | 'Participated'
   | 'Completed'
   | 'Call Failed'
-  | 'Invalid Number';
+  | 'Invalid Number'
+  | 'Not Interested';
 
 export interface Lead {
   id: string;
@@ -28,7 +29,6 @@ export interface Lead {
   email_status: ActivityStatus;
 
   final_status: FinalStatus;
-
   last_call_id?: string;
   last_activity: string;
   created_at: string;
@@ -41,9 +41,9 @@ export interface CallLog {
   call_id: string;
   agent_id: string;
   call_type: string;
-  call_status: 'completed' | 'failed' | 'busy' | 'no_answer' | 'in_progress';
+  call_status: string;
   outcome?: string;
-  duration: number; // in seconds
+  duration: number;
   transcript?: string;
   summary?: string;
   callback_required: boolean;
