@@ -20,48 +20,53 @@ export class StatusEngine {
 
     const isCallSuccess = event.callStatus === 'completed' && event.outcome !== 'wrong_number' && !isNotInterested;
 
-    // Agent 1: Day 1 — Registration & Onboarding Call
-    if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || event.agentId === '456' || !event.agentId) {
-      if (isCallSuccess) {
-        updatedLead.agent_status = 'completed'; // Green Tick ✓ for Agent 1!
-      } else {
-        updatedLead.agent_status = 'failed'; // Red 🔴 for Agent 1!
+    if (isNotInterested) {
+      updatedLead.agent_status = 'failed';
+      updatedLead.participated_status = 'failed';
+    } else {
+      // Agent 1: Day 1 — Registration & Onboarding Call
+      if (event.agentId === 'agent_registration' || event.agentId === 'agent_snapserve_01' || event.agentId === '456' || !event.agentId) {
+        if (isCallSuccess) {
+          updatedLead.agent_status = 'completed'; // Green Tick ✓ for Agent 1!
+        } else {
+          updatedLead.agent_status = 'failed'; // Red 🔴 for Agent 1!
+        }
       }
-    }
 
-    // Agent 2: Day 3 — Tech & Track Screening Call
-    if (event.agentId === 'agent_tech_screening' || event.agentId === 'agent_snapserve_02') {
-      if (isCallSuccess) {
-        updatedLead.cold_call_status = 'completed';
-      } else {
-        updatedLead.cold_call_status = 'failed';
+      // Agent 2: Day 3 — Tech & Track Screening Call
+      if (event.agentId === 'agent_tech_screening' || event.agentId === 'agent_snapserve_02') {
+        if (isCallSuccess) {
+          updatedLead.cold_call_status = 'completed';
+        } else {
+          updatedLead.cold_call_status = 'failed';
+        }
       }
-    }
 
-    // Agent 3: Day 5 — Attendance & Discord Confirmation Call
-    if (event.agentId === 'agent_confirmation') {
-      if (isCallSuccess) {
-        updatedLead.followup_status = 'completed';
-      } else {
-        updatedLead.followup_status = 'failed';
+      // Agent 3: Day 5 — Attendance & Discord Confirmation Call
+      if (event.agentId === 'agent_confirmation') {
+        if (isCallSuccess) {
+          updatedLead.followup_status = 'completed';
+        } else {
+          updatedLead.followup_status = 'failed';
+        }
       }
-    }
 
-    // Agent 4: Day 7 — Opening Ceremony & Event Reminder Call
-    if (event.agentId === 'agent_reminder') {
-      if (isCallSuccess) {
-        updatedLead.reminder_status = 'completed';
-      } else {
-        updatedLead.reminder_status = 'failed';
+      // Agent 4: Day 7 — Opening Ceremony & Event Reminder Call
+      if (event.agentId === 'agent_reminder') {
+        if (isCallSuccess) {
+          updatedLead.reminder_status = 'completed';
+        } else {
+          updatedLead.reminder_status = 'failed';
+        }
       }
-    }
 
-    // Agent 5: Day 8 — Post-Hackathon Feedback & Survey Call
-    if (event.agentId === 'agent_feedback') {
-      if (isCallSuccess) {
-        updatedLead.email_status = 'completed';
-      } else {
-        updatedLead.email_status = 'failed';
+      // Agent 5: Day 8 — Post-Hackathon Feedback & Survey Call
+      if (event.agentId === 'agent_feedback') {
+        if (isCallSuccess) {
+          updatedLead.email_status = 'completed';
+        } else {
+          updatedLead.email_status = 'failed';
+        }
       }
     }
 
