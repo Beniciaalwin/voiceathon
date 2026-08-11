@@ -12,6 +12,18 @@ export class WebhookController {
 
     console.log('[Webhook Received]', JSON.stringify(rawPayload));
 
+    // Handle Ping / URL Healthcheck requests gracefully without logging errors
+    if (
+      !rawPayload ||
+      Object.keys(rawPayload).length === 0 ||
+      rawPayload.event === 'ping' ||
+      rawPayload.type === 'ping' ||
+      rawPayload.action === 'ping'
+    ) {
+      res.status(200).json({ success: true, message: 'SnapServe webhook endpoint active' });
+      return;
+    }
+
     let normalizedEvent;
     try {
       // 1. Normalize SnapServe payload
