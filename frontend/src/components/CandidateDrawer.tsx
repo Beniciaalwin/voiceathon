@@ -157,7 +157,13 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('got a number') ||
       fullCallText.includes('got number') ||
       fullCallText.includes('has a number') ||
-      fullCallText.includes('has phone number');
+      fullCallText.includes('has phone number') ||
+      fullCallText.includes('registered number') ||
+      fullCallText.includes('activated number') ||
+      fullCallText.includes('bought sim') ||
+      fullCallText.includes('twilio number') ||
+      fullCallText.includes('vapi number') ||
+      fullCallText.includes('retell number');
 
     if (llmTicks?.agent1?.phoneNumberPurchased === true || llmTicks?.agent2?.phoneNumberPurchased === true || llmTicks?.agent1?.phoneNumberPurchased === 'verified' || textConfirmsPhone) return 'verified';
     return 'not_asked';
@@ -184,6 +190,12 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('build their agent') ||
       fullCallText.includes('building their agent') ||
       fullCallText.includes('progress of building') ||
+      fullCallText.includes('customer started building') ||
+      fullCallText.includes('coding started') ||
+      fullCallText.includes('bot created') ||
+      fullCallText.includes('working on it') ||
+      fullCallText.includes('developing agent') ||
+      fullCallText.includes('agent ready') ||
       fullCallText.includes('build an agent');
 
     if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || llmTicks?.agent1?.agentBuildStarted === 'verified' || textConfirmsBuild) return 'verified';
@@ -203,7 +215,8 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('deadline explained') ||
       fullCallText.includes('21 august') ||
       fullCallText.includes('20 august') ||
-      fullCallText.includes('submit by');
+      fullCallText.includes('submit by') ||
+      fullCallText.includes('submission date');
 
     if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || llmTicks?.agent1?.aug21DeadlineConveyed === 'verified' || textConfirmsDeadline) return 'verified';
     return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';

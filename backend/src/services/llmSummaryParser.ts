@@ -42,9 +42,10 @@ export class LLMSummaryParser {
 Analyze the FULL JSON payload, call summary, evidence, notes, and transcript for Agent ID "${agentId}".
 Evaluate the conversation and return ONLY a raw JSON object with status fields set to "verified", "not_yet", or "not_asked".
 
-CRITICAL AUDIT RULE FOR REVISED/NEGATED STATEMENTS:
-- If the latest call explicitly states that the participant has NOT purchased a phone number (e.g. "haven't purchased", "have not bought", "no phone number"), set phoneNumberPurchased to "not_yet".
-- If the latest call explicitly states that the participant has NOT started building (e.g. "haven't started", "not building"), set agentBuildStarted to "not_yet".
+FLEXIBLE INTENT AUDIT GUIDELINES FOR UNSEEN PHRASES:
+1. Phone Number Purchased: Set to "verified" if the customer indicates obtaining, purchasing, activating, registering, or paying for ANY phone number or line (e.g., "purchased number", "got a number", "paid bill", "obtained number", "registered number", "twilio/plivo/vapi/retell number", "bought SIM", "activated number"). Set to "not_yet" if explicitly denied ("haven't bought", "no number").
+2. Agent Build Started / Completed: Set to "verified" if the customer indicates starting, working on, developing, creating, or building their agent, bot, prompt, logic, model, or assistant (e.g., "start பண்ணிட்டேன்", "started building", "building agent", "coding started", "bot created", "working on it", "agent ready", "built 100%").
+3. Deadline Conveyed: Set to "verified" if August 20/21 or September 5 deadline, event dates, or submission rules were discussed or confirmed.
 
 Checklist mappings per agent:
 Agent 1 ("agent_registration" or "agent_snapserve_01" or "456"): Return object key "agent1" with:
@@ -135,7 +136,13 @@ Call Transcript & Evidence: "${transcript}"`;
         text.includes('got a number') ||
         text.includes('got number') ||
         text.includes('has a number') ||
-        text.includes('has phone number'));
+        text.includes('has phone number') ||
+        text.includes('registered number') ||
+        text.includes('activated number') ||
+        text.includes('bought sim') ||
+        text.includes('twilio number') ||
+        text.includes('vapi number') ||
+        text.includes('retell number'));
 
     const hasBuildStarted =
       !isExplicitlyNoBuild &&
@@ -156,7 +163,12 @@ Call Transcript & Evidence: "${transcript}"`;
         text.includes('build their agent') ||
         text.includes('building their agent') ||
         text.includes('progress of building') ||
-        text.includes('customer started building'));
+        text.includes('customer started building') ||
+        text.includes('coding started') ||
+        text.includes('bot created') ||
+        text.includes('working on it') ||
+        text.includes('developing agent') ||
+        text.includes('agent ready'));
 
     const hasDeadlineConveyed =
       text.includes('aug 21') ||
@@ -167,7 +179,8 @@ Call Transcript & Evidence: "${transcript}"`;
       text.includes('20 august') ||
       text.includes('september 5') ||
       text.includes('deadline') ||
-      text.includes('submit by');
+      text.includes('submit by') ||
+      text.includes('submission date');
 
     if (agentId === 'agent_registration' || agentId === 'agent_snapserve_01' || agentId === '456' || !agentId) {
       return {
