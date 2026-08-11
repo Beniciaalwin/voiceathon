@@ -149,9 +149,15 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('built agent') ||
       fullCallText.includes('built the agent') ||
       fullCallText.includes('built an agent') ||
+      fullCallText.includes('built his agent') ||
       fullCallText.includes('building an agent') ||
-      fullCallText.includes('build their agent') ||
       fullCallText.includes('building the agent') ||
+      fullCallText.includes('building his agent') ||
+      fullCallText.includes('building his voice agent') ||
+      fullCallText.includes('building her agent') ||
+      fullCallText.includes('build their agent') ||
+      fullCallText.includes('building their agent') ||
+      fullCallText.includes('progress of building') ||
       fullCallText.includes('build an agent');
 
     if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || llmTicks?.agent1?.agentBuildStarted === 'verified' || textConfirmsBuild) return 'verified';

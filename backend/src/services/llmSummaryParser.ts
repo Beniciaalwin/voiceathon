@@ -123,7 +123,9 @@ Call Transcript: "${transcript}"`;
       text.includes('obtained number') ||
       text.includes('paid the bill') ||
       text.includes('got a number') ||
-      text.includes('got number');
+      text.includes('got number') ||
+      text.includes('has a number') ||
+      text.includes('has phone number');
 
     const hasBuildStarted =
       text.includes('build started') ||
@@ -132,15 +134,23 @@ Call Transcript: "${transcript}"`;
       text.includes('built agent') ||
       text.includes('built the agent') ||
       text.includes('built an agent') ||
+      text.includes('built his agent') ||
       text.includes('building an agent') ||
+      text.includes('building the agent') ||
+      text.includes('building his agent') ||
+      text.includes('building his voice agent') ||
+      text.includes('building her agent') ||
       text.includes('build their agent') ||
-      text.includes('building the agent');
+      text.includes('building their agent') ||
+      text.includes('progress of building');
 
     const hasDeadlineConveyed =
       text.includes('aug 21') ||
       text.includes('august 21') ||
+      text.includes('21 august') ||
       text.includes('aug 20') ||
       text.includes('august 20') ||
+      text.includes('20 august') ||
       text.includes('september 5') ||
       text.includes('deadline') ||
       text.includes('submit by');
