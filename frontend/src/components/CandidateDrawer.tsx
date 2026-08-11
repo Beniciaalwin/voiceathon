@@ -27,6 +27,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   const [activeTab, setActiveTab] = useState<'agent_ticks' | 'calls' | 'journey'>('agent_ticks');
   const [selectedAgentTab, setSelectedAgentTab] = useState<'agent_1' | 'agent_2' | 'agent_3' | 'agent_4' | 'agent_5'>('agent_1');
 
+  // Load calls & activities when lead updates
   useEffect(() => {
     if (!lead) return;
     setLoading(true);
@@ -37,7 +38,21 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       })
       .catch((err) => console.error('Failed to load participant details:', err))
       .finally(() => setLoading(false));
-  }, [lead]);
+  }, [lead?.id, lead?.updated_at, lead?.last_activity, lead?.final_status]);
+
+  // Live 2-second automatic polling while drawer is open on screen
+  useEffect(() => {
+    if (!lead) return;
+    const pollTimer = setInterval(() => {
+      Promise.all([fetchLeadCalls(lead.id), fetchLeadActivities(lead.id)])
+        .then(([callsData, actsData]) => {
+          setCalls(callsData);
+          setActivities(actsData);
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(pollTimer);
+  }, [lead?.id]);
 
   if (!lead) return null;
 
