@@ -91,7 +91,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   }) || calls[0];
 
   const isCallFailed = Boolean(latestCall && (latestCall.call_status === 'failed' || latestCall.outcome === 'unreachable' || latestCall.outcome === 'failed'));
-  const isCallConnected = Boolean(latestCall && !isCallFailed && (latestCall.duration > 0 || latestCall.call_status === 'completed'));
+  const isCallConnected = Boolean(calls.length > 0 && calls.some(c => (c.duration > 0 || c.call_status === 'completed') && c.call_status !== 'failed'));
 
   const isNotInterested = Boolean(
     lead.final_status === 'Not Interested' ||
@@ -103,50 +103,63 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   );
 
   const llmTicks = latestCall?.raw_webhook_data?.llm_ticks;
+  const fullCallText = calls.map(c => (c.summary || '') + ' ' + (c.transcript || '')).join(' ').toLowerCase();
 
-  // Strict Verbal AI Confirmation rule for Phone Number Purchased
+  // Natural Language AI Confirmation rule for Phone Number Purchased
   const phonePurchasedTick: TickState = (() => {
-    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
     const textConfirmsPhone =
-      callText.includes('purchased number') ||
-      callText.includes('bought number') ||
-      callText.includes('purchased phone') ||
-      callText.includes('bought phone') ||
-      callText.includes('purchased a number') ||
-      callText.includes('bought a number') ||
-      callText.includes('phone number purchased');
+      fullCallText.includes('purchased number') ||
+      fullCallText.includes('bought number') ||
+      fullCallText.includes('purchased phone') ||
+      fullCallText.includes('bought phone') ||
+      fullCallText.includes('purchased a number') ||
+      fullCallText.includes('bought a number') ||
+      fullCallText.includes('phone number purchased') ||
+      fullCallText.includes('obtained a number') ||
+      fullCallText.includes('obtained number') ||
+      fullCallText.includes('paid the bill') ||
+      fullCallText.includes('got a number') ||
+      fullCallText.includes('got number');
 
-    if (llmTicks?.agent1?.phoneNumberPurchased === true || llmTicks?.agent2?.phoneNumberPurchased === true || textConfirmsPhone) return 'verified';
+    if (llmTicks?.agent1?.phoneNumberPurchased === true || llmTicks?.agent2?.phoneNumberPurchased === true || llmTicks?.agent1?.phoneNumberPurchased === 'verified' || textConfirmsPhone) return 'verified';
     if (llmTicks?.agent1?.phoneNumberPurchased === false || llmTicks?.agent1?.phoneValidated === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const agentBuildStartedTick: TickState = (() => {
-    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
     const textConfirmsBuild =
-      callText.includes('build started') ||
-      callText.includes('agent build') ||
-      callText.includes('started building') ||
-      callText.includes('built agent') ||
-      callText.includes('building an agent');
+      fullCallText.includes('build started') ||
+      fullCallText.includes('agent build') ||
+      fullCallText.includes('started building') ||
+      fullCallText.includes('built agent') ||
+      fullCallText.includes('built the agent') ||
+      fullCallText.includes('built an agent') ||
+      fullCallText.includes('building an agent') ||
+      fullCallText.includes('build their agent') ||
+      fullCallText.includes('building the agent') ||
+      fullCallText.includes('build an agent');
 
-    if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || textConfirmsBuild) return 'verified';
+    if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || llmTicks?.agent1?.agentBuildStarted === 'verified' || textConfirmsBuild) return 'verified';
     if (llmTicks?.agent1?.agentBuildStarted === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const deadlineConveyedTick: TickState = (() => {
-    const callText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
     const textConfirmsDeadline =
-      callText.includes('aug 21') ||
-      callText.includes('august 21') ||
-      callText.includes('deadline conveyed') ||
-      callText.includes('deadline explained') ||
-      callText.includes('21 august');
+      fullCallText.includes('aug 21') ||
+      fullCallText.includes('august 21') ||
+      fullCallText.includes('aug 20') ||
+      fullCallText.includes('august 20') ||
+      fullCallText.includes('september 5') ||
+      fullCallText.includes('deadline conveyed') ||
+      fullCallText.includes('deadline explained') ||
+      fullCallText.includes('21 august') ||
+      fullCallText.includes('20 august') ||
+      fullCallText.includes('submit by');
 
-    if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || textConfirmsDeadline) return 'verified';
+    if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || llmTicks?.agent1?.aug21DeadlineConveyed === 'verified' || textConfirmsDeadline) return 'verified';
     if (llmTicks?.agent1?.aug21DeadlineConveyed === false || isNotInterested) return 'not_yet';
-    return 'not_yet';
+    return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
   })();
 
   // Exact 5 Voiceathon Agent Checklist Schemas
@@ -164,7 +177,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
         },
         {
           label: 'Interested in Participating',
-          state: isNotInterested ? 'not_yet' : (lead.agent_status === 'completed' ? 'verified' : 'not_yet'),
+          state: isNotInterested ? 'not_yet' : (lead.agent_status === 'completed' || isCallConnected ? 'verified' : 'not_yet'),
           verifiedLabel: '✅ Confirmed',
           notYetLabel: '🔴 Not Interested',
         },
