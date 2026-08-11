@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play } from 'lucide-react';
+import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play, Sparkles, Activity as ActivityIcon } from 'lucide-react';
 import { Lead, CallLog, Activity } from '../types/index';
 import { fetchLeadCalls, fetchLeadActivities } from '../lib/api';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
@@ -24,7 +24,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'agent_ticks' | 'calls' | 'journey'>('agent_ticks');
+  const [activeTab, setActiveTab] = useState<'summary' | 'agent_ticks' | 'calls' | 'journey'>('summary');
   const [selectedAgentTab, setSelectedAgentTab] = useState<'agent_1' | 'agent_2' | 'agent_3' | 'agent_4' | 'agent_5'>('agent_1');
 
   // Load calls & activities when lead updates
@@ -512,10 +512,21 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex border-b border-gray-200 px-6 bg-white">
+            <div className="flex border-b border-gray-200 px-6 bg-white overflow-x-auto">
+              <button
+                onClick={() => setActiveTab('summary')}
+                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'summary'
+                    ? 'border-purple-600 text-purple-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                Participant Activity Summary
+              </button>
               <button
                 onClick={() => setActiveTab('agent_ticks')}
-                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all ${
+                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'agent_ticks'
                     ? 'border-purple-600 text-purple-900'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -525,17 +536,17 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
               </button>
               <button
                 onClick={() => setActiveTab('calls')}
-                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all ${
+                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'calls'
                     ? 'border-purple-600 text-purple-900'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                Call History & Transcripts ({calls.length})
+                Call History ({calls.length})
               </button>
               <button
                 onClick={() => setActiveTab('journey')}
-                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all ${
+                className={`py-3 px-4 text-xs font-semibold border-b-2 transition-all whitespace-nowrap ${
                   activeTab === 'journey'
                     ? 'border-purple-600 text-purple-900'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -555,6 +566,124 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                 </div>
               ) : (
                 <>
+                  {/* TAB 0: DIRECT JSON PARTICIPANT ACTIVITY SUMMARY */}
+                  {activeTab === 'summary' && (
+                    <div className="space-y-5">
+                      <div className="bg-gradient-to-br from-purple-900 via-indigo-900 to-gray-900 text-white rounded-2xl p-5 shadow-lg space-y-4">
+                        <div className="flex items-center justify-between border-b border-purple-800/80 pb-3">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-amber-400" />
+                            <h3 className="text-sm font-bold text-purple-100 uppercase tracking-wider">
+                              Participant JSON Status & Accomplishments
+                            </h3>
+                          </div>
+                          <span className="text-[11px] bg-purple-800/80 text-purple-200 font-mono px-2.5 py-0.5 rounded-full border border-purple-700">
+                            SnapServe AI Audit
+                          </span>
+                        </div>
+
+                        {/* Direct Status Cards derived straight from JSON */}
+                        <div className="grid grid-cols-1 gap-2.5">
+                          {/* 1. Phone Number Status */}
+                          <div className="bg-black/30 p-3.5 rounded-xl border border-purple-800/50 flex items-center justify-between">
+                            <span className="text-xs font-medium text-purple-200">📱 Phone Number Purchased:</span>
+                            {phonePurchasedTick === 'verified' ? (
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800">
+                                ✅ Number Purchased & Paid
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-rose-400 bg-rose-950/80 px-2.5 py-1 rounded-lg border border-rose-800">
+                                🔴 Not Purchased Yet
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 2. Agent Build Status */}
+                          <div className="bg-black/30 p-3.5 rounded-xl border border-purple-800/50 flex items-center justify-between">
+                            <span className="text-xs font-medium text-purple-200">🤖 Agent Build Progress:</span>
+                            {agentBuildStartedTick === 'verified' ? (
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800">
+                                ✅ Agent Build Started
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-amber-300 bg-amber-950/80 px-2.5 py-1 rounded-lg border border-amber-800">
+                                ⚪ Not Started Yet
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 3. Participation Confirmation */}
+                          <div className="bg-black/30 p-3.5 rounded-xl border border-purple-800/50 flex items-center justify-between">
+                            <span className="text-xs font-medium text-purple-200">🎯 Voiceathon Participation:</span>
+                            {isNotInterested ? (
+                              <span className="text-xs font-bold text-rose-400 bg-rose-950/80 px-2.5 py-1 rounded-lg border border-rose-800">
+                                🔴 Declined / Not Interested
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800">
+                                ✅ Confirmed Interested
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 4. Aug 21 Deadline Conveyed */}
+                          <div className="bg-black/30 p-3.5 rounded-xl border border-purple-800/50 flex items-center justify-between">
+                            <span className="text-xs font-medium text-purple-200">📅 Aug 21 Deadline Conveyed:</span>
+                            {deadlineConveyedTick === 'verified' ? (
+                              <span className="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-800">
+                                ✅ Clearly Conveyed
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold text-rose-400 bg-rose-950/80 px-2.5 py-1 rounded-lg border border-rose-800">
+                                🔴 Not Yet Covered
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Direct Tamil / English Spoken Proof Evidence */}
+                        {rawEvidence && (
+                          <div className="bg-emerald-950/60 p-3.5 rounded-xl border border-emerald-800/80 space-y-1">
+                            <span className="text-[10px] text-emerald-300 uppercase tracking-wider font-bold block">
+                              Verbatim Spoken Proof (JSON Evidence):
+                            </span>
+                            <p className="text-xs font-mono text-emerald-200 font-bold leading-relaxed">
+                              "{rawEvidence}"
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Full Call Summary Text */}
+                        {latestCall?.summary && (
+                          <div className="bg-black/40 p-3.5 rounded-xl border border-gray-800 space-y-1">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold block">
+                              SnapServe Executive Summary:
+                            </span>
+                            <p className="text-xs text-gray-300 leading-relaxed">{latestCall.summary}</p>
+                          </div>
+                        )}
+
+                        {/* Call Duration & Recording */}
+                        {latestCall && (
+                          <div className="flex items-center justify-between pt-2 border-t border-purple-800/60 text-xs text-purple-200 font-mono">
+                            <span>Last Call Duration: {Math.floor(latestCall.duration / 60)}m {latestCall.duration % 60}s</span>
+                            {recordingUrl && (
+                              <a
+                                href={recordingUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-bold px-3 py-1 rounded-lg text-[11px] shadow-sm transition-all"
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                                Listen Recording
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* TAB 1: 5-AGENT VOICEATHON TICKS */}
                   {activeTab === 'agent_ticks' && (
                     <div className="space-y-5">
