@@ -131,6 +131,8 @@ Call Transcript: "${transcript}"`;
       text.includes('build started') ||
       text.includes('agent build') ||
       text.includes('started building') ||
+      text.includes('start பண்ணி') ||
+      text.includes('start பண்ணிட்டேன்') ||
       text.includes('built agent') ||
       text.includes('built the agent') ||
       text.includes('built an agent') ||
@@ -142,7 +144,8 @@ Call Transcript: "${transcript}"`;
       text.includes('building her agent') ||
       text.includes('build their agent') ||
       text.includes('building their agent') ||
-      text.includes('progress of building');
+      text.includes('progress of building') ||
+      text.includes('customer started building');
 
     const hasDeadlineConveyed =
       text.includes('aug 21') ||

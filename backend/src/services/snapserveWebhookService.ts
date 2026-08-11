@@ -3,7 +3,7 @@ import { SnapServeNormalizedEvent } from '../types';
 export class SnapServeWebhookService {
   /**
    * Normalizes incoming raw SnapServe payload into standard internal SnapServeNormalizedEvent format.
-   * Handles variant JSON structures (Snake_case, camelCase, nested event payload objects, retell/vapi style payloads, SnapServe Campaign Lead Transferred payloads).
+   * Combines all summary, notes, evidence, and transcript fields for complete AI audit evaluation.
    */
   public parseWebhookPayload(rawPayload: any): SnapServeNormalizedEvent {
     if (!rawPayload || typeof rawPayload !== 'object') {
@@ -18,7 +18,7 @@ export class SnapServeWebhookService {
       rawPayload.action ||
       'call.completed';
 
-    // Extract phone number from various potential paths (including toNumber, metadata.callerKey)
+    // Extract phone number from various potential paths
     const phone =
       rawPayload.phone ||
       rawPayload.phone_number ||
@@ -104,32 +104,30 @@ export class SnapServeWebhookService {
       duration = rawPayload.call_length;
     }
 
-    // Extract summary
-    const summary =
-      rawPayload.callSummary ||
-      rawPayload.fields?.notes ||
-      rawPayload.dispositionResult?.summary ||
-      rawPayload.summary ||
-      rawPayload.call_summary ||
-      rawPayload.summary_text ||
-      rawPayload.call_analysis?.call_summary ||
-      rawPayload.call_analysis?.summary ||
-      rawPayload.analysis?.summary ||
-      rawPayload.ai_summary ||
-      rawPayload.details ||
-      '';
+    // Combine ALL summary & notes sources (callSummary, fields.notes, dispositionResult.summary)
+    const summaryParts = [
+      rawPayload.callSummary,
+      rawPayload.fields?.notes,
+      rawPayload.dispositionResult?.summary,
+      rawPayload.summary,
+      rawPayload.call_summary,
+      rawPayload.ai_summary,
+      rawPayload.details,
+    ].filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
 
-    // Extract transcript / evidence
-    const transcript =
-      rawPayload.transcript ||
-      rawPayload.call_transcript ||
-      rawPayload.transcript_text ||
-      rawPayload.dispositionResult?.evidence ||
-      rawPayload.concatenated_transcript ||
-      rawPayload.dialogue ||
-      rawPayload.text ||
-      summary ||
-      '';
+    const summary = Array.from(new Set(summaryParts)).join(' | ');
+
+    // Combine ALL transcript & evidence sources (transcript, dispositionResult.evidence, dialogue)
+    const transcriptParts = [
+      rawPayload.transcript,
+      rawPayload.dispositionResult?.evidence,
+      rawPayload.call_transcript,
+      rawPayload.dialogue,
+      rawPayload.text,
+      summary,
+    ].filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+
+    const transcript = Array.from(new Set(transcriptParts)).join(' | ');
 
     // Extract callback requirements
     const callbackRequired =
