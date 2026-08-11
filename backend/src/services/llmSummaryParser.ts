@@ -42,6 +42,10 @@ export class LLMSummaryParser {
 Analyze the FULL JSON payload, call summary, evidence, notes, and transcript for Agent ID "${agentId}".
 Evaluate the conversation and return ONLY a raw JSON object with status fields set to "verified", "not_yet", or "not_asked".
 
+CRITICAL AUDIT RULE FOR REVISED/NEGATED STATEMENTS:
+- If the latest call explicitly states that the participant has NOT purchased a phone number (e.g. "haven't purchased", "have not bought", "no phone number"), set phoneNumberPurchased to "not_yet".
+- If the latest call explicitly states that the participant has NOT started building (e.g. "haven't started", "not building"), set agentBuildStarted to "not_yet".
+
 Checklist mappings per agent:
 Agent 1 ("agent_registration" or "agent_snapserve_01" or "456"): Return object key "agent1" with:
   welcomeConnected ("verified" | "not_yet"),
@@ -56,27 +60,6 @@ Agent 2 ("agent_tech_screening"): Return object key "agent2" with:
   agentBuildCompleted ("verified" | "not_yet" | "not_asked"),
   helpOfferedStuckPoints ("verified" | "not_asked"),
   submissionRequirementReconfirmed ("verified" | "not_yet").
-
-Agent 3 ("agent_confirmation"): Return object key "agent3" with:
-  reconnectConnected ("verified" | "not_yet"),
-  phoneNumberPurchased ("verified" | "not_yet" | "not_asked"),
-  agentBuildCompleted ("verified" | "not_yet" | "not_asked"),
-  agentTested ("verified" | "not_yet" | "not_asked"),
-  submissionOnTrack ("verified" | "not_yet").
-
-Agent 4 ("agent_reminder"): Return object key "agent4" with:
-  reconnectConnected ("verified" | "not_yet"),
-  phoneNumberPurchased ("verified" | "not_yet" | "not_asked"),
-  agentBuildCompleted ("verified" | "not_yet" | "not_asked"),
-  submittedOnPlatform ("verified" | "not_yet" | "not_asked"),
-  callbackOfferedDoubts ("verified" | "not_yet").
-
-Agent 5 ("agent_feedback"): Return object key "agent5" with:
-  reconnectConnected ("verified" | "not_yet"),
-  phoneNumberWorking ("verified" | "not_yet"),
-  agentWorking ("verified" | "not_yet"),
-  submissionConfirmedOnFile ("verified" | "not_yet"),
-  eventLogisticsReconfirmed ("verified" | "not_yet").
 
 Full Raw JSON Event Payload:
 ${jsonString || 'N/A'}
@@ -120,40 +103,60 @@ Call Transcript & Evidence: "${transcript}"`;
       text.includes('opt out') ||
       text.includes('cancel');
 
+    const isExplicitlyNoPhone =
+      text.includes("haven't purchased") ||
+      text.includes("have not purchased") ||
+      text.includes("didn't purchase") ||
+      text.includes("did not purchase") ||
+      text.includes("no phone number") ||
+      text.includes("not bought") ||
+      text.includes("not purchased") ||
+      text.includes("haven't bought");
+
+    const isExplicitlyNoBuild =
+      text.includes("haven't started") ||
+      text.includes("have not started") ||
+      text.includes("didn't start") ||
+      text.includes("did not start") ||
+      text.includes("not built") ||
+      text.includes("not building");
+
     const hasPhonePurchased =
-      text.includes('number purchased') ||
-      text.includes('purchased phone') ||
-      text.includes('purchased a phone') ||
-      text.includes('purchased a number') ||
-      text.includes('bought phone') ||
-      text.includes('bought number') ||
-      text.includes('obtained a number') ||
-      text.includes('obtained number') ||
-      text.includes('paid the bill') ||
-      text.includes('got a number') ||
-      text.includes('got number') ||
-      text.includes('has a number') ||
-      text.includes('has phone number');
+      !isExplicitlyNoPhone &&
+      (text.includes('number purchased') ||
+        text.includes('purchased phone') ||
+        text.includes('purchased a phone') ||
+        text.includes('purchased a number') ||
+        text.includes('bought phone') ||
+        text.includes('bought number') ||
+        text.includes('obtained a number') ||
+        text.includes('obtained number') ||
+        text.includes('paid the bill') ||
+        text.includes('got a number') ||
+        text.includes('got number') ||
+        text.includes('has a number') ||
+        text.includes('has phone number'));
 
     const hasBuildStarted =
-      text.includes('build started') ||
-      text.includes('agent build') ||
-      text.includes('started building') ||
-      text.includes('start பண்ணி') ||
-      text.includes('start பண்ணிட்டேன்') ||
-      text.includes('built agent') ||
-      text.includes('built the agent') ||
-      text.includes('built an agent') ||
-      text.includes('built his agent') ||
-      text.includes('building an agent') ||
-      text.includes('building the agent') ||
-      text.includes('building his agent') ||
-      text.includes('building his voice agent') ||
-      text.includes('building her agent') ||
-      text.includes('build their agent') ||
-      text.includes('building their agent') ||
-      text.includes('progress of building') ||
-      text.includes('customer started building');
+      !isExplicitlyNoBuild &&
+      (text.includes('build started') ||
+        text.includes('agent build') ||
+        text.includes('started building') ||
+        text.includes('start பண்ணி') ||
+        text.includes('start பண்ணிட்டேன்') ||
+        text.includes('built agent') ||
+        text.includes('built the agent') ||
+        text.includes('built an agent') ||
+        text.includes('built his agent') ||
+        text.includes('building an agent') ||
+        text.includes('building the agent') ||
+        text.includes('building his agent') ||
+        text.includes('building his voice agent') ||
+        text.includes('building her agent') ||
+        text.includes('build their agent') ||
+        text.includes('building their agent') ||
+        text.includes('progress of building') ||
+        text.includes('customer started building'));
 
     const hasDeadlineConveyed =
       text.includes('aug 21') ||

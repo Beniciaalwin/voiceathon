@@ -119,9 +119,30 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
 
   const llmTicks = latestCall?.raw_webhook_data?.llm_ticks;
   const fullCallText = calls.map(c => (c.summary || '') + ' ' + (c.transcript || '')).join(' ').toLowerCase();
+  const latestCallText = ((latestCall?.summary || '') + ' ' + (latestCall?.transcript || '')).toLowerCase();
+
+  const isExplicitlyNoPhoneInLatestCall =
+    latestCallText.includes("haven't purchased") ||
+    latestCallText.includes("have not purchased") ||
+    latestCallText.includes("didn't purchase") ||
+    latestCallText.includes("did not purchase") ||
+    latestCallText.includes("no phone number") ||
+    latestCallText.includes("not bought") ||
+    latestCallText.includes("not purchased") ||
+    latestCallText.includes("haven't bought");
+
+  const isExplicitlyNoBuildInLatestCall =
+    latestCallText.includes("haven't started") ||
+    latestCallText.includes("have not started") ||
+    latestCallText.includes("didn't start") ||
+    latestCallText.includes("did not start") ||
+    latestCallText.includes("not built") ||
+    latestCallText.includes("not building");
 
   // Natural Language AI Confirmation rule for Phone Number Purchased
   const phonePurchasedTick: TickState = (() => {
+    if (isNotInterested || isExplicitlyNoPhoneInLatestCall) return 'not_yet';
+
     const textConfirmsPhone =
       fullCallText.includes('purchased number') ||
       fullCallText.includes('bought number') ||
@@ -134,18 +155,23 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('obtained number') ||
       fullCallText.includes('paid the bill') ||
       fullCallText.includes('got a number') ||
-      fullCallText.includes('got number');
+      fullCallText.includes('got number') ||
+      fullCallText.includes('has a number') ||
+      fullCallText.includes('has phone number');
 
     if (llmTicks?.agent1?.phoneNumberPurchased === true || llmTicks?.agent2?.phoneNumberPurchased === true || llmTicks?.agent1?.phoneNumberPurchased === 'verified' || textConfirmsPhone) return 'verified';
-    if (llmTicks?.agent1?.phoneNumberPurchased === false || llmTicks?.agent1?.phoneValidated === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const agentBuildStartedTick: TickState = (() => {
+    if (isNotInterested || isExplicitlyNoBuildInLatestCall) return 'not_yet';
+
     const textConfirmsBuild =
       fullCallText.includes('build started') ||
       fullCallText.includes('agent build') ||
       fullCallText.includes('started building') ||
+      fullCallText.includes('start பண்ணி') ||
+      fullCallText.includes('start பண்ணிட்டேன்') ||
       fullCallText.includes('built agent') ||
       fullCallText.includes('built the agent') ||
       fullCallText.includes('built an agent') ||
@@ -161,11 +187,12 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('build an agent');
 
     if (llmTicks?.agent1?.agentBuildStarted === true || llmTicks?.agent2?.agentBuildCompleted === true || llmTicks?.agent1?.agentBuildStarted === 'verified' || textConfirmsBuild) return 'verified';
-    if (llmTicks?.agent1?.agentBuildStarted === false || isNotInterested) return 'not_yet';
     return 'not_asked';
   })();
 
   const deadlineConveyedTick: TickState = (() => {
+    if (isNotInterested) return 'not_yet';
+
     const textConfirmsDeadline =
       fullCallText.includes('aug 21') ||
       fullCallText.includes('august 21') ||
@@ -179,7 +206,6 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('submit by');
 
     if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || llmTicks?.agent1?.aug21DeadlineConveyed === 'verified' || textConfirmsDeadline) return 'verified';
-    if (llmTicks?.agent1?.aug21DeadlineConveyed === false || isNotInterested) return 'not_yet';
     return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
   })();
 
