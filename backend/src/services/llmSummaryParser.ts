@@ -12,30 +12,34 @@ export class LLMSummaryParser {
   public async parseSummaryToTicks(
     summary: string = '',
     transcript: string = '',
-    agentId: string = ''
+    agentId: string = '',
+    rawPayload?: any
   ): Promise<AgentLLMTicks> {
     const apiKey = process.env.GROQ_API_KEY || this.groqApiKey;
 
     if (apiKey && apiKey.startsWith('gsk_')) {
       try {
         console.log('[Groq LLM] Executing Voiceathon 5-Agent Verification Checklist Evaluation...');
-        return await this.callGroqAPI(summary, transcript, agentId, apiKey);
+        return await this.callGroqAPI(summary, transcript, agentId, apiKey, rawPayload);
       } catch (err: any) {
         console.error('[Groq LLM Error] Falling back to Voiceathon rule parser:', err.message);
       }
     }
 
-    return this.fallbackRuleParser(summary, transcript, agentId);
+    return this.fallbackRuleParser(summary, transcript, agentId, rawPayload);
   }
 
   private async callGroqAPI(
     summary: string,
     transcript: string,
     agentId: string,
-    apiKey: string
+    apiKey: string,
+    rawPayload?: any
   ): Promise<AgentLLMTicks> {
+    const jsonString = rawPayload ? JSON.stringify(rawPayload, null, 2) : '';
+
     const prompt = `You are an AI Hackathon Call Verification Audit Assistant for Voiceathon 2026.
-Analyze the following call summary and transcript for Agent ID "${agentId}".
+Analyze the FULL JSON payload, call summary, evidence, notes, and transcript for Agent ID "${agentId}".
 Evaluate the conversation and return ONLY a raw JSON object with status fields set to "verified", "not_yet", or "not_asked".
 
 Checklist mappings per agent:
@@ -74,8 +78,11 @@ Agent 5 ("agent_feedback"): Return object key "agent5" with:
   submissionConfirmedOnFile ("verified" | "not_yet"),
   eventLogisticsReconfirmed ("verified" | "not_yet").
 
+Full Raw JSON Event Payload:
+${jsonString || 'N/A'}
+
 Call Summary: "${summary}"
-Call Transcript: "${transcript}"`;
+Call Transcript & Evidence: "${transcript}"`;
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -100,8 +107,9 @@ Call Transcript: "${transcript}"`;
     return JSON.parse(json.choices[0].message.content);
   }
 
-  private fallbackRuleParser(summary: string, transcript: string, agentId: string): AgentLLMTicks {
-    const text = (summary + ' ' + transcript).toLowerCase();
+  private fallbackRuleParser(summary: string, transcript: string, agentId: string, rawPayload?: any): AgentLLMTicks {
+    const rawStr = rawPayload ? JSON.stringify(rawPayload).toLowerCase() : '';
+    const text = (summary + ' ' + transcript + ' ' + rawStr).toLowerCase();
     const isCompleted = !text.includes('failed') && !text.includes('unreachable') && !text.includes('wrong number');
     const isNotInterested =
       text.includes('not interested') ||

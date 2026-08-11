@@ -48,7 +48,8 @@ export class WebhookController {
       const llmTicks = await llmSummaryParser.parseSummaryToTicks(
         normalizedEvent.summary,
         normalizedEvent.transcript,
-        normalizedEvent.agentId
+        normalizedEvent.agentId,
+        rawPayload
       );
 
       // 3. Identify or Create Lead
