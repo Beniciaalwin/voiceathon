@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight } from 'lucide-react';
+import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play } from 'lucide-react';
 import { Lead, CallLog, Activity } from '../types/index';
 import { fetchLeadCalls, fetchLeadActivities } from '../lib/api';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
@@ -428,6 +428,10 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   const selectedChecklist = agentSubChecklists[selectedAgentTab];
   const verifiedCount = selectedChecklist.items.filter(i => i.state === 'verified').length;
 
+  const rawEvidence = latestCall?.raw_webhook_data?.dispositionResult?.evidence;
+  const confidenceScore = latestCall?.raw_webhook_data?.dispositionResult?.confidence;
+  const recordingUrl = latestCall?.raw_webhook_data?.recordingUrl || latestCall?.raw_webhook_data?.fields?.recordingUrl;
+
   const renderBadge = (item: TickItem) => {
     if (item.state === 'verified') {
       return (
@@ -619,6 +623,60 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                           </span>
                         </div>
                       </div>
+
+                      {/* Rich AI Call Audit & Spoken Evidence Card */}
+                      {latestCall && (
+                        <div className="bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 text-white rounded-2xl p-5 shadow-md space-y-3">
+                          <div className="flex items-center justify-between border-b border-purple-800/60 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-purple-200">
+                                Realtime AI Call Audit & Spoken Evidence
+                              </span>
+                            </div>
+                            {typeof confidenceScore === 'number' && (
+                              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded border border-emerald-500/30">
+                                {Math.round(confidenceScore * 100)}% Audit Confidence
+                              </span>
+                            )}
+                          </div>
+
+                          {rawEvidence && (
+                            <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-700/50">
+                              <span className="text-[10px] text-purple-300 uppercase tracking-wider font-bold block mb-1">
+                                Verbatim Spoken Evidence (Tamil/English):
+                              </span>
+                              <p className="text-xs font-mono text-emerald-300 font-bold leading-relaxed">
+                                "{rawEvidence}"
+                              </p>
+                            </div>
+                          )}
+
+                          {latestCall.summary && (
+                            <div className="bg-black/30 p-3 rounded-xl border border-gray-800">
+                              <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold block mb-1">
+                                AI Call Summary:
+                              </span>
+                              <p className="text-xs text-gray-200 leading-relaxed">{latestCall.summary}</p>
+                            </div>
+                          )}
+
+                          {recordingUrl && (
+                            <div className="flex items-center justify-between pt-1 text-xs">
+                              <span className="text-gray-400 font-mono text-[11px]">Audio Recording</span>
+                              <a
+                                href={recordingUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded-lg font-medium text-[11px] shadow-sm transition-all"
+                              >
+                                <Play className="w-3 h-3 fill-current" />
+                                Listen Recording
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
