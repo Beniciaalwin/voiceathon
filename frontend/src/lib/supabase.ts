@@ -1,7 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL || 'https://qubngelwtqlwnooqweim.supabase.co';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_LBmVXWNTb7I_OMV6GEyYXw_SyAPV9VZ';
 
 export const isSupabaseFrontendConfigured = Boolean(
   supabaseUrl && supabaseUrl.startsWith('http') && supabaseAnonKey && supabaseAnonKey.length > 10
@@ -25,6 +27,7 @@ export function subscribeToRealtimeUpdates(onUpdate: (payload: { event: string; 
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leads' },
         (payload) => {
+          console.log('[Supabase Realtime] Leads table change:', payload);
           onUpdate({ event: 'LEAD_UPDATED', payload: payload.new });
         }
       )
@@ -32,6 +35,7 @@ export function subscribeToRealtimeUpdates(onUpdate: (payload: { event: string; 
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'call_logs' },
         (payload) => {
+          console.log('[Supabase Realtime] Call log inserted:', payload);
           onUpdate({ event: 'CALL_LOG_ADDED', payload: payload.new });
         }
       )
@@ -39,6 +43,7 @@ export function subscribeToRealtimeUpdates(onUpdate: (payload: { event: string; 
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'webhook_logs' },
         (payload) => {
+          console.log('[Supabase Realtime] Webhook logged:', payload);
           onUpdate({ event: 'WEBHOOK_LOGGED', payload: payload.new });
         }
       )
@@ -48,32 +53,38 @@ export function subscribeToRealtimeUpdates(onUpdate: (payload: { event: string; 
       supabaseClient.removeChannel(channel);
     };
   } else {
-    // Fallback WebSocket subscription
-    console.log('[WebSocket Realtime] Connecting to backend ws://...');
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname === 'localhost' ? 'localhost:4000' : window.location.host;
+    // Fallback Backend WebSocket subscription
+    const isHttps = window.location.protocol === 'https:';
+    const protocol = isHttps ? 'wss:' : 'ws:';
+    const host = window.location.hostname === 'localhost' ? 'localhost:4000' : 'voiceathon-backend.onrender.com';
     const wsUrl = `${protocol}//${host}/ws`;
 
+    console.log('[WebSocket Realtime] Connecting to:', wsUrl);
     let ws: WebSocket | null = null;
     let timerId: any = null;
 
     const connect = () => {
       ws = new WebSocket(wsUrl);
 
+      ws.onopen = () => {
+        console.log('[WebSocket Realtime] Connected successfully');
+      };
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.event) {
-            onUpdate(data);
-          }
+          onUpdate(data);
         } catch (e) {
-          // ignore non-json
+          // ignore
         }
       };
 
       ws.onclose = () => {
-        // Reconnect after 3s if closed
         timerId = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        ws?.close();
       };
     };
 
@@ -81,7 +92,7 @@ export function subscribeToRealtimeUpdates(onUpdate: (payload: { event: string; 
 
     return () => {
       if (timerId) clearTimeout(timerId);
-      if (ws) ws.close();
+      ws?.close();
     };
   }
 }

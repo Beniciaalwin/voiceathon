@@ -1,6 +1,10 @@
 import { Lead, CallLog, Activity, WebhookLog, DashboardStats } from '../types/index';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:4000'
+    : 'https://voiceathon-backend.onrender.com');
 
 export async function fetchLeads(params?: {
   search?: string;
@@ -60,14 +64,8 @@ export async function fetchWebhookLogs(): Promise<WebhookLog[]> {
 export async function triggerSimulatedWebhook(payload: any): Promise<any> {
   const res = await fetch(`${API_BASE_URL}/api/webhooks/snapserve`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  return await res.json();
-}
-
-export async function resetDataset(): Promise<void> {
-  await fetch(`${API_BASE_URL}/api/leads/reset`, { method: 'POST' });
+  return res.json();
 }
