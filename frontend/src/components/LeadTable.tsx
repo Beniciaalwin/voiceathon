@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lead } from '../types/index';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
-import { Clock, Phone, Mail, UserCheck, CalendarDays, MessageSquareQuote, CheckCircle2 } from 'lucide-react';
+import { Clock, Phone, Mail, UserCheck, CalendarDays } from 'lucide-react';
 
 interface LeadTableProps {
   leads: Lead[];
@@ -76,12 +76,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   return (
     <div className="bg-white rounded-xl border border-gray-200/80 shadow-subtle overflow-hidden transition-all">
       <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1150px]">
+        <table className="w-full text-left border-collapse min-w-[1050px]">
           <thead>
             <tr className="bg-gray-50/70 border-b border-gray-200/70 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
               <th className="py-3 px-4">Participant Name</th>
               <th className="py-3 px-3">Phone</th>
-              <th className="py-3 px-4">Latest Call Spoken Statement / Evidence</th>
               <th className="py-3 px-3">Multi-Day Journey</th>
               <th className="py-3 px-2 text-center" title="Day 1: Agent 1">A1 (D1)</th>
               <th className="py-3 px-2 text-center" title="Day 3: Agent 2">A2 (D3)</th>
@@ -96,26 +95,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             {leads.map((lead) => {
               const isSelected = lead.id === selectedLeadId;
               const sequence = getSequenceStage(lead);
-
-              // Derive candidate's verbatim spoken statement from lead data
-              const candidateStatement = (() => {
-                if (lead.phone === '919566126490' || lead.name.toLowerCase().includes('sathish')) {
-                  return 'start பண்ணிட்டேன் ma\'am | Building voice agent, submission on Aug 21';
-                }
-                if (lead.phone === '918637416033' || lead.name.toLowerCase().includes('ben')) {
-                  return 'Obtained phone number & paid bill | Ready for Sep 5 event';
-                }
-                if (lead.phone === '919342042401' || lead.name.toLowerCase().includes('shiva')) {
-                  return 'start பண்ணிட்டேன் ma\'am | Phone number obtained & agent build started';
-                }
-                if (lead.final_status === 'Not Interested') {
-                  return 'Not interested in Voiceathon hackathon';
-                }
-                if (lead.agent_status === 'completed') {
-                  return 'Welcome call completed, build started & number confirmed';
-                }
-                return 'Pending AI Call';
-              })();
 
               return (
                 <tr
@@ -133,7 +112,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
                       <div>
                         <div>{lead.name}</div>
-                        <div className="text-[10px] text-gray-400 font-mono font-normal">{lead.email || 'Participant'}</div>
+                        <div className="text-[10px] text-gray-400 font-mono font-normal">{lead.email}</div>
                       </div>
                     </div>
                   </td>
@@ -143,16 +122,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     <div className="flex items-center gap-1.5">
                       <Phone className="w-3 h-3 text-gray-400" />
                       <span>{lead.phone}</span>
-                    </div>
-                  </td>
-
-                  {/* Verbatim Candidate Spoken Statement / Evidence Column */}
-                  <td className="py-3.5 px-4 max-w-[280px]">
-                    <div className="flex items-start gap-1.5 bg-purple-50/60 p-2 rounded-lg border border-purple-100 text-[11px] text-purple-950 font-medium">
-                      <MessageSquareQuote className="w-3.5 h-3.5 text-purple-600 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2 leading-tight" title={candidateStatement}>
-                        "{candidateStatement}"
-                      </span>
                     </div>
                   </td>
 
@@ -188,9 +157,9 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
                   {/* Last Activity */}
                   <td className="py-3.5 px-4 text-right text-gray-500 font-mono text-[11px]">
-                    <div className="flex items-center justify-end gap-1 text-gray-400">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatTimeAgo(lead.last_activity || lead.updated_at)}</span>
+                    <div className="inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-gray-400" />
+                      <span>{formatTimeAgo(lead.last_activity)}</span>
                     </div>
                   </td>
                 </tr>
