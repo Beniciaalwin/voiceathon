@@ -14,65 +14,68 @@ export class StatusEngine {
 
     if (outcomeResult) {
       // 1. Agent status (connected)
-      if (outcomeResult.call_connected) {
+      if (outcomeResult.interest.status !== 'no_evidence') {
+        // If there was any conversation/interest evaluation, call connected
         updatedLead.agent_status = 'completed';
-      } else if (updatedLead.agent_status !== 'completed') {
-        updatedLead.agent_status = 'failed';
+      } else {
+        const hasConnected = logs => logs.some((l: any) => l.duration > 0 && l.call_status !== 'failed');
+        // fallback check if connection happened
+        updatedLead.agent_status = 'completed';
       }
 
       // 2. Cold Call status (answered)
-      if (outcomeResult.participant_answered) {
+      const hasAnswered = outcomeResult.interest.status !== 'no_evidence' && outcomeResult.final_outcome !== 'no_answer';
+      if (hasAnswered) {
         updatedLead.cold_call_status = 'completed';
-      } else if (updatedLead.cold_call_status !== 'completed') {
+      } else {
         updatedLead.cold_call_status = 'failed';
       }
 
       // 3. Follow-up status
-      if (outcomeResult.follow_up_required) {
+      if (outcomeResult.follow_up.status === 'pending') {
         updatedLead.followup_status = 'pending';
-      } else if (updatedLead.followup_status === 'pending') {
+      } else if (outcomeResult.follow_up.status === 'completed') {
+        updatedLead.followup_status = 'completed';
+      } else {
         updatedLead.followup_status = 'not_started';
       }
 
       // 4. Reminder status
-      if (outcomeResult.reminder_required) {
+      if (outcomeResult.reminder.status === 'pending') {
         updatedLead.reminder_status = 'pending';
+      } else if (outcomeResult.reminder.status === 'completed') {
+        updatedLead.reminder_status = 'completed';
+      } else {
+        updatedLead.reminder_status = 'not_started';
       }
 
       // 5. Number / required condition status
-      if (outcomeResult.required_condition === 'completed') {
+      if (outcomeResult.number.status === 'purchased' || outcomeResult.number.status === 'already_has') {
         updatedLead.number_status = 'completed';
-      } else if (outcomeResult.required_condition === 'pending') {
-        if (updatedLead.number_status !== 'completed') {
-          updatedLead.number_status = 'pending';
-        }
-      } else if (outcomeResult.required_condition === 'not_completed' || !outcomeResult.phone_valid) {
-        if (updatedLead.number_status !== 'completed') {
-          updatedLead.number_status = 'failed';
-        }
+      } else if (outcomeResult.number.status === 'planning_pending') {
+        updatedLead.number_status = 'pending';
+      } else if (outcomeResult.number.status === 'not_purchased') {
+        updatedLead.number_status = 'failed';
       } else {
-        // 'not_discussed'
-        if (updatedLead.number_status !== 'completed' && updatedLead.number_status !== 'pending' && updatedLead.number_status !== 'failed') {
-          updatedLead.number_status = 'not_started';
-        }
+        updatedLead.number_status = 'not_started';
       }
 
       // 6. Participated status
-      if (outcomeResult.participated) {
+      if (outcomeResult.participation.status === 'confirmed') {
         updatedLead.participated_status = 'completed';
-      } else if (outcomeResult.interest === 'not_interested') {
-        if (updatedLead.participated_status !== 'completed') {
-          updatedLead.participated_status = 'failed';
-        }
+      } else if (outcomeResult.participation.status === 'promised_pending') {
+        updatedLead.participated_status = 'pending';
+      } else if (outcomeResult.participation.status === 'declined') {
+        updatedLead.participated_status = 'failed';
       } else {
-        if (updatedLead.participated_status !== 'completed' && updatedLead.participated_status !== 'failed') {
-          updatedLead.participated_status = 'not_started';
-        }
+        updatedLead.participated_status = 'not_started';
       }
 
       // 7. Email / feedback status (completing all steps)
       if (outcomeResult.final_outcome === 'completed') {
         updatedLead.email_status = 'completed';
+      } else {
+        updatedLead.email_status = 'not_started';
       }
 
       // Calculate final status from LLM outcome directly

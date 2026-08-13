@@ -561,20 +561,49 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
               {/* AI OUTCOME & REASON SUMMARY CARD */}
               {(() => {
                 const latestCallOutcome = latestCall?.raw_webhook_data?.llm_outcome || {
-                  call_connected: isCallConnected,
-                  participant_answered: isCallConnected && !isNotInterested,
-                  interest: isNotInterested ? 'not_interested' : (isCallConnected ? 'interested' : 'unknown'),
-                  follow_up_required: lead.followup_status === 'pending',
-                  reminder_required: lead.reminder_status === 'pending',
-                  participated: lead.participated_status === 'completed',
-                  required_condition: lead.number_status === 'completed' ? 'completed' : (lead.number_status === 'pending' ? 'pending' : 'not_completed'),
-                  phone_valid: lead.number_status !== 'failed',
+                  interest: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
+                  participation: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
+                  follow_up: { status: lead.followup_status === 'pending' ? 'pending' : 'no_evidence', evidence: null, confidence: 1.0 },
+                  reminder: { status: lead.reminder_status === 'pending' ? 'pending' : 'no_evidence', evidence: null, confidence: 1.0 },
+                  number: { status: lead.number_status === 'completed' ? 'purchased' : (lead.number_status === 'pending' ? 'planning_pending' : 'no_evidence'), evidence: null, confidence: 1.0 },
                   final_outcome: lead.final_status === 'Not Interested' ? 'not_interested' : (lead.final_status === 'Completed' ? 'completed' : 'participated'),
                   confidence: 0.8,
-                  reason: isNotInterested ? 'Participant declined during call.' : 'Status inferred from verified ticks.',
-                  number_status: lead.number_status === 'completed' ? 'Purchased' : (lead.number_status === 'pending' ? 'Planning to Purchase' : 'Unclear'),
-                  number_reason: 'Status inferred from verified ticks.',
-                  needs_review: lead.final_status === 'Unclear'
+                  reason: 'Status mapped from database state.'
+                };
+
+                const formatStatusLabel = (field: string, statusObj: any) => {
+                  const status = statusObj?.status || 'no_evidence';
+                  if (field === 'interest') {
+                    if (status === 'confirmed') return 'Confirmed ✓';
+                    if (status === 'declined') return 'Declined ✕';
+                    if (status === 'unclear') return 'Unclear ◷';
+                    return 'No Evidence —';
+                  }
+                  if (field === 'participation') {
+                    if (status === 'confirmed') return 'Confirmed ✓';
+                    if (status === 'promised_pending') return 'Promised ◷';
+                    if (status === 'declined') return 'Declined ✕';
+                    return 'No Evidence —';
+                  }
+                  if (field === 'follow_up') {
+                    if (status === 'pending') return 'Pending ◷';
+                    if (status === 'completed') return 'Completed ✓';
+                    return 'No Evidence —';
+                  }
+                  if (field === 'reminder') {
+                    if (status === 'pending') return 'Pending ◷';
+                    if (status === 'completed') return 'Completed ✓';
+                    return 'No Evidence —';
+                  }
+                  if (field === 'number') {
+                    if (status === 'purchased') return 'Purchased ✓';
+                    if (status === 'already_has') return 'Already Has It ✓';
+                    if (status === 'planning_pending') return 'Planning ◷';
+                    if (status === 'not_purchased') return 'Not Purchased ✕';
+                    if (status === 'not_required') return 'Not Required —';
+                    return 'No Evidence —';
+                  }
+                  return '—';
                 };
 
                 return (
@@ -583,7 +612,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-amber-400" />
                         <span className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
-                          AI Conversation Outcome
+                          AI Strict Conversation Audit
                         </span>
                       </div>
                       {latestCallOutcome.confidence && (
@@ -600,41 +629,70 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                       </div>
                       <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
                         <span className="text-purple-300 font-bold block mb-0.5">Interest Status:</span>
-                        <span className="text-white font-bold capitalize">{latestCallOutcome.interest || 'Unknown'}</span>
+                        <span className="text-white font-bold">{formatStatusLabel('interest', latestCallOutcome.interest)}</span>
                       </div>
                       <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
                         <span className="text-purple-300 font-bold block mb-0.5">Participation Status:</span>
-                        <span className="text-white font-bold">{latestCallOutcome.participated ? 'Confirmed ✓' : 'Not Confirmed'}</span>
+                        <span className="text-white font-bold">{formatStatusLabel('participation', latestCallOutcome.participation)}</span>
                       </div>
                       <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
                         <span className="text-purple-300 font-bold block mb-0.5">Follow-up Status:</span>
-                        <span className="text-white font-bold">{latestCallOutcome.follow_up_required ? 'Required ◷' : 'Not Required'}</span>
+                        <span className="text-white font-bold">{formatStatusLabel('follow_up', latestCallOutcome.follow_up)}</span>
                       </div>
                       <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
                         <span className="text-purple-300 font-bold block mb-0.5">Reminder Status:</span>
-                        <span className="text-white font-bold">{latestCallOutcome.reminder_required ? 'Required ◷' : 'Not Required'}</span>
+                        <span className="text-white font-bold">{formatStatusLabel('reminder', latestCallOutcome.reminder)}</span>
                       </div>
                       <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
                         <span className="text-purple-300 font-bold block mb-0.5">Phone Number Status:</span>
-                        <span className="text-white font-bold">{latestCallOutcome.number_status || 'Unclear'}</span>
+                        <span className="text-white font-bold">{formatStatusLabel('number', latestCallOutcome.number)}</span>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-purple-900/60 text-xs">
-                      <span className="text-purple-300 font-bold block mb-1">AI Summary & Reason:</span>
-                      <p className="text-gray-200 text-[11px] leading-relaxed">
-                        {latestCallOutcome.reason || 'No reasoning available.'}
-                      </p>
-                    </div>
-
-                    {latestCallOutcome.number_reason && (
-                      <div className="pt-2 border-t border-purple-900/60 text-xs">
-                        <span className="text-purple-300 font-bold block mb-1">Phone Number Status Reason:</span>
+                    <div className="pt-2 border-t border-purple-900/60 text-xs space-y-2">
+                      <div>
+                        <span className="text-purple-300 font-bold block mb-0.5">Audit Summary & Reason:</span>
                         <p className="text-gray-200 text-[11px] leading-relaxed">
-                          {latestCallOutcome.number_reason}
+                          {latestCallOutcome.reason || 'No reasoning available.'}
                         </p>
                       </div>
-                    )}
+
+                      {latestCallOutcome.interest?.evidence && (
+                        <div className="pt-1.5 border-t border-purple-900/40">
+                          <span className="text-purple-300 font-bold block mb-0.5">Interest Evidence:</span>
+                          <p className="text-gray-300 text-[11px] font-mono leading-tight">
+                            "{latestCallOutcome.interest.evidence}"
+                          </p>
+                        </div>
+                      )}
+
+                      {latestCallOutcome.participation?.evidence && (
+                        <div className="pt-1.5 border-t border-purple-900/40">
+                          <span className="text-purple-300 font-bold block mb-0.5">Participation Evidence:</span>
+                          <p className="text-gray-300 text-[11px] font-mono leading-tight">
+                            "{latestCallOutcome.participation.evidence}"
+                          </p>
+                        </div>
+                      )}
+
+                      {latestCallOutcome.number?.evidence && (
+                        <div className="pt-1.5 border-t border-purple-900/40">
+                          <span className="text-purple-300 font-bold block mb-0.5">Phone Number Evidence:</span>
+                          <p className="text-gray-300 text-[11px] font-mono leading-tight">
+                            "{latestCallOutcome.number.evidence}"
+                          </p>
+                        </div>
+                      )}
+
+                      {latestCallOutcome.follow_up?.evidence && (
+                        <div className="pt-1.5 border-t border-purple-900/40">
+                          <span className="text-purple-300 font-bold block mb-0.5">Follow-up Evidence:</span>
+                          <p className="text-gray-300 text-[11px] font-mono leading-tight">
+                            "{latestCallOutcome.follow_up.evidence}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     {latestCall?.summary && (
                       <div className="pt-2 border-t border-purple-900/60">
@@ -650,26 +708,26 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                       <span className="text-purple-300 font-bold block mb-2">Conversation Timeline:</span>
                       <div className="flex items-center gap-4 text-[11px] bg-black/10 p-2.5 rounded-xl border border-purple-950/60 font-mono">
                         <div className="flex items-center gap-1">
-                          {latestCallOutcome.call_connected ? (
+                          {latestCallOutcome.interest?.status !== 'no_evidence' ? (
                             <span className="text-emerald-400 font-bold">✓ Connected</span>
                           ) : (
                             <span className="text-rose-400 font-bold">✕ Disconnected</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {latestCallOutcome.participant_answered ? (
+                          {latestCallOutcome.interest?.status !== 'no_evidence' && latestCallOutcome.final_outcome !== 'no_answer' ? (
                             <span className="text-emerald-400 font-bold">✓ Answered</span>
                           ) : (
                             <span className="text-rose-400 font-bold">✕ No Answer</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {latestCallOutcome.interest === 'interested' ? (
+                          {latestCallOutcome.interest?.status === 'confirmed' ? (
                             <span className="text-emerald-400 font-bold">✓ Interested</span>
-                          ) : latestCallOutcome.interest === 'not_interested' ? (
-                            <span className="text-rose-400 font-bold">✕ Not Interested</span>
-                          ) : latestCallOutcome.interest === 'follow_up' ? (
-                            <span className="text-amber-400 font-bold">◷ Follow-up</span>
+                          ) : latestCallOutcome.interest?.status === 'declined' ? (
+                            <span className="text-rose-400 font-bold">✕ Declined</span>
+                          ) : latestCallOutcome.interest?.status === 'unclear' ? (
+                            <span className="text-amber-400 font-bold">◷ Unclear</span>
                           ) : (
                             <span className="text-gray-400 font-bold">⚪ Unknown</span>
                           )}

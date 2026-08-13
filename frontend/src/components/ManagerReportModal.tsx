@@ -23,27 +23,26 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 1. Calculate general readiness stats dynamically
+  // 1. Calculate strict audit stats dynamically
   const totalParticipants = leads.length;
-  const callsCompleted = leads.filter(l => l.agent_status !== 'not_started').length;
-  const reachedParticipants = leads.filter(l => l.cold_call_status === 'completed').length;
-  const interestedCount = leads.filter(l => l.llm_analysis?.interest === 'interested' || l.final_status === 'Participated' || l.final_status === 'Completed').length;
-  const confirmedCount = leads.filter(l => l.llm_analysis?.participation === 'Confirmed' || l.final_status === 'Completed').length;
+  const interestedCount = leads.filter(l => l.llm_analysis?.interest?.status === 'confirmed').length;
+  const notInterestedCount = leads.filter(l => l.llm_analysis?.interest?.status === 'declined').length;
+  const confirmedCount = leads.filter(l => l.final_status === 'Completed').length;
+  const participatedCount = leads.filter(l => l.llm_analysis?.participation?.status === 'confirmed').length;
   
-  const followupPendingCount = leads.filter(l => l.final_status === 'Follow-up Pending').length;
-  const reminderPendingCount = leads.filter(l => l.final_status === 'Reminder Pending').length;
-  const notInterestedCount = leads.filter(l => l.final_status === 'Not Interested').length;
+  const followupPendingCount = leads.filter(l => l.final_status === 'Follow-up Pending' || l.llm_analysis?.follow_up?.status === 'pending').length;
+  const reminderPendingCount = leads.filter(l => l.final_status === 'Reminder Pending' || l.llm_analysis?.reminder?.status === 'pending').length;
+  
   const noAnswerCount = leads.filter(l => l.final_status === 'No Answer').length;
   const callFailedCount = leads.filter(l => l.final_status === 'Call Failed').length;
-  const unclearCount = leads.filter(l => l.final_status === 'Unclear').length;
+  const needsReviewCount = leads.filter(l => l.final_status === 'Unclear' || l.llm_analysis?.interest?.status === 'unclear').length;
 
-  // 2. Calculate phone number purchase stats dynamically
-  const numPurchased = leads.filter(l => l.llm_analysis?.number_status === 'Purchased').length;
-  const alreadyHaveNum = leads.filter(l => l.llm_analysis?.number_status === 'Already Has It').length;
-  const planningToPurchase = leads.filter(l => l.llm_analysis?.number_status === 'Planning to Purchase').length;
-  const numNotPurchased = leads.filter(l => l.llm_analysis?.number_status === 'Not Purchased').length;
-  const numNotRequired = leads.filter(l => l.llm_analysis?.number_status === 'Not Required').length;
-  const numUnclear = leads.filter(l => l.llm_analysis?.number_status === 'Unclear' || !l.llm_analysis?.number_status).length;
+  // 2. Phone number purchase stats dynamically mapped from strict audit
+  const numPurchased = leads.filter(l => l.llm_analysis?.number?.status === 'purchased' || l.llm_analysis?.number?.status === 'already_has').length;
+  const numNotPurchased = leads.filter(l => l.llm_analysis?.number?.status === 'not_purchased').length;
+  const numPurchasePending = leads.filter(l => l.llm_analysis?.number?.status === 'planning_pending').length;
+  const numNotRequired = leads.filter(l => l.llm_analysis?.number?.status === 'not_required').length;
+  const numUnclear = leads.filter(l => l.llm_analysis?.number?.status === 'no_evidence' || l.llm_analysis?.number?.status === 'unclear' || !l.llm_analysis?.number?.status).length;
 
   const handleDownloadReport = () => {
     // Generate CSV data for manager export
@@ -144,60 +143,68 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
           {/* Dynamic Stats Section */}
           <div className="p-5 bg-gray-50/70 border-b border-gray-200/80">
             {activeTab === 'outcomes' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10 gap-3 text-xs">
                 <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
                   <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Total</span>
-                  <p className="text-base font-bold text-gray-900 mt-0.5">{totalParticipants}</p>
+                  <p className="text-sm font-bold text-gray-900 mt-0.5">{totalParticipants}</p>
                 </div>
-                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Completed Calls</span>
-                  <p className="text-base font-bold text-gray-900 mt-0.5">{callsCompleted}</p>
+                <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 shadow-xs">
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Interested</span>
+                  <p className="text-sm font-bold text-emerald-900 mt-0.5">{interestedCount}</p>
                 </div>
-                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Reached</span>
-                  <p className="text-base font-bold text-gray-900 mt-0.5">{reachedParticipants}</p>
+                <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200/80 shadow-xs">
+                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Not Int.</span>
+                  <p className="text-sm font-bold text-rose-900 mt-0.5">{notInterestedCount}</p>
                 </div>
                 <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 shadow-xs">
                   <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Confirmed</span>
-                  <p className="text-base font-bold text-emerald-900 mt-0.5">{confirmedCount}</p>
+                  <p className="text-sm font-bold text-emerald-900 mt-0.5">{confirmedCount}</p>
+                </div>
+                <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 shadow-xs">
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Participated</span>
+                  <p className="text-sm font-bold text-emerald-900 mt-0.5">{participatedCount}</p>
                 </div>
                 <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 shadow-xs">
                   <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Follow-up</span>
-                  <p className="text-base font-bold text-amber-900 mt-0.5">{followupPendingCount}</p>
+                  <p className="text-sm font-bold text-amber-900 mt-0.5">{followupPendingCount}</p>
+                </div>
+                <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 shadow-xs">
+                  <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Reminder</span>
+                  <p className="text-sm font-bold text-amber-900 mt-0.5">{reminderPendingCount}</p>
+                </div>
+                <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-200/80 shadow-xs">
+                  <span className="text-blue-700 font-bold block text-[9px] uppercase tracking-wider">No Answer</span>
+                  <p className="text-sm font-bold text-blue-900 mt-0.5">{noAnswerCount}</p>
                 </div>
                 <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200/80 shadow-xs">
-                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Declined</span>
-                  <p className="text-base font-bold text-rose-900 mt-0.5">{notInterestedCount}</p>
+                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Failed</span>
+                  <p className="text-sm font-bold text-rose-900 mt-0.5">{callFailedCount}</p>
+                </div>
+                <div className="bg-orange-50/70 p-3 rounded-xl border border-orange-200/80 shadow-xs">
+                  <span className="text-orange-700 font-bold block text-[9px] uppercase tracking-wider">Review</span>
+                  <p className="text-sm font-bold text-orange-900 mt-0.5">{needsReviewCount}</p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 text-xs">
                 <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Total</span>
+                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Total Participants</span>
                   <p className="text-base font-bold text-gray-900 mt-0.5">{totalParticipants}</p>
                 </div>
                 <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/60 shadow-xs">
-                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Purchased</span>
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Number Purchased</span>
                   <p className="text-base font-bold text-emerald-900 mt-0.5">{numPurchased}</p>
                 </div>
-                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/60 shadow-xs">
-                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Already Has</span>
-                  <p className="text-base font-bold text-emerald-900 mt-0.5">{alreadyHaveNum}</p>
-                </div>
-                <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/60 shadow-xs">
-                  <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Planning</span>
-                  <p className="text-base font-bold text-amber-900 mt-0.5">{planningToPurchase}</p>
-                </div>
                 <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-200/60 shadow-xs">
-                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Not Purchased</span>
+                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Number Not Purchased</span>
                   <p className="text-base font-bold text-rose-900 mt-0.5">{numNotPurchased}</p>
                 </div>
-                <div className="bg-gray-100 p-3 rounded-xl border border-gray-200 shadow-xs">
-                  <span className="text-gray-500 font-bold block text-[9px] uppercase tracking-wider">Not Required</span>
-                  <p className="text-base font-bold text-gray-700 mt-0.5">{numNotRequired}</p>
+                <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/60 shadow-xs">
+                  <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Number Purchase Pending</span>
+                  <p className="text-base font-bold text-amber-900 mt-0.5">{numPurchasePending}</p>
                 </div>
                 <div className="bg-orange-50/60 p-3 rounded-xl border border-orange-200/60 shadow-xs">
-                  <span className="text-orange-700 font-bold block text-[9px] uppercase tracking-wider">Unclear / Review</span>
+                  <span className="text-orange-700 font-bold block text-[9px] uppercase tracking-wider">Number Status Unclear</span>
                   <p className="text-base font-bold text-orange-900 mt-0.5">{numUnclear}</p>
                 </div>
               </div>
@@ -266,29 +273,29 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
                   </div>
 
                   {/* Dynamic Status Details Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-xs">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-xs font-mono">
                     <div>
                       <span className="text-gray-400 font-semibold block">Interest Level:</span>
-                      <span className="font-bold text-gray-900 mt-0.5 inline-block capitalize">
-                        {analysis?.interest || 'Unknown'}
+                      <span className="font-bold text-gray-950 mt-0.5 inline-block capitalize">
+                        {analysis?.interest?.status || 'no_evidence'}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-400 font-semibold block">Required Number:</span>
-                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
-                        {analysis?.number_status || 'Unclear'}
+                      <span className="font-bold text-gray-950 mt-0.5 inline-block capitalize">
+                        {analysis?.number?.status || 'no_evidence'}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-400 font-semibold block">Follow-up:</span>
-                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
-                        {analysis?.follow_up_required ? 'Required ◷' : 'Not Required'}
+                      <span className="font-bold text-gray-950 mt-0.5 inline-block capitalize">
+                        {analysis?.follow_up?.status || 'no_evidence'}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-400 font-semibold block">Participation:</span>
-                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
-                        {analysis?.participated ? 'Confirmed ✓' : 'Not Confirmed'}
+                      <span className="font-bold text-gray-950 mt-0.5 inline-block capitalize">
+                        {analysis?.participation?.status || 'no_evidence'}
                       </span>
                     </div>
                   </div>
