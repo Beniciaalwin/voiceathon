@@ -30,7 +30,12 @@ interface AnalysisSummary {
   needsFollowUp: number;
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:4000'
+    : 'https://voiceathon-backend.onrender.com');
+const API_BASE = `${API_BASE_URL.replace(/\/$/, '')}/api`;
 
 function formatPhone(phone: string): string {
   if (!phone || phone.length < 10) return phone;
