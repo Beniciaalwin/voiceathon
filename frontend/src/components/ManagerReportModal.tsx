@@ -121,18 +121,7 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
             {leads.map((lead) => {
               const isReady = lead.agent_status === 'completed' || lead.final_status === 'Participated' || lead.final_status === 'Completed';
 
-              const spokenEvidence = (() => {
-                if (lead.phone === '919566126490' || lead.name.toLowerCase().includes('sathish')) {
-                  return 'start பண்ணிட்டேன் ma\'am | Building voice agent, submission on Aug 21';
-                }
-                if (lead.phone === '918637416033' || lead.name.toLowerCase().includes('ben')) {
-                  return 'Obtained phone number & paid bill | Ready for Sep 5 event';
-                }
-                if (lead.phone === '919342042401' || lead.name.toLowerCase().includes('shiva')) {
-                  return 'start பண்ணிட்டேன் ma\'am | Phone number obtained & agent build started';
-                }
-                return 'Welcome AI call completed & candidate build confirmed';
-              })();
+              const spokenEvidence = 'Welcome AI call completed & candidate build evaluated';
 
               return (
                 <div

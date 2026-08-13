@@ -237,10 +237,9 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
     const eventDone = '🟢 Confirmed Participating in Voiceathon (Aug 21 Deadline)';
 
     const spokenQuote = latestCall?.raw_webhook_data?.dispositionResult?.evidence ||
-      (lead.phone === '919566126490' ? 'start பண்ணிட்டேன் ma\'am | Building voice agent' :
-       lead.phone === '918637416033' ? 'Obtained phone number & paid bill' :
-       lead.phone === '919342042401' ? 'start பண்ணிட்டேன் ma\'am | Number obtained' :
-       'Welcome AI call completed & candidate build confirmed');
+      latestCall?.summary ||
+      latestCall?.transcript ||
+      'Welcome AI call completed & candidate build evaluated';
 
     return {
       phone: phoneDone,
