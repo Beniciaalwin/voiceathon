@@ -40,7 +40,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           Quick Category Filters:
         </span>
         <button
-          onClick={() => onStatusFilterChange(statusFilter === 'all' ? 'all' : 'all')}
+          onClick={() => onStatusFilterChange('all')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer border ${
             statusFilter === 'all'
               ? 'bg-purple-900 text-white border-purple-900 shadow-xs'

@@ -18,14 +18,73 @@ export class LeadController {
             query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
           }
 
-          if (status === 'build_not_started') {
-            query = query.or('agent_status.eq.not_yet,agent_status.eq.failed,final_status.eq.Not Started');
-          } else if (status === 'phone_pending') {
-            query = query.or('final_status.eq.Not Started,final_status.eq.Calling,final_status.eq.Follow-up Pending');
-          } else if (status === 'ready') {
-            query = query.or('final_status.eq.Participated,final_status.eq.Completed,agent_status.eq.completed');
-          } else if (status === 'action_needed') {
-            query = query.or('final_status.eq.Follow-up Pending,final_status.eq.Not Started,agent_status.eq.failed');
+          // For smart filters — fetch qualifying lead IDs from call_logs llm_ticks
+          if (status === 'build_not_started' || status === 'phone_pending' || status === 'ready' || status === 'not_interested_filter') {
+            const { data: callLogs } = await supabase
+              .from('call_logs')
+              .select('lead_id, raw_webhook_data, duration');
+
+            if (callLogs && callLogs.length > 0) {
+              // Latest log per lead
+              const byLead: Record<string, any> = {};
+              for (const log of callLogs) {
+                if (!byLead[log.lead_id]) byLead[log.lead_id] = log;
+              }
+
+              let matchingIds: string[] = [];
+
+              if (status === 'ready') {
+                // Phone bought AND agent built
+                matchingIds = Object.entries(byLead)
+                  .filter(([, log]) => {
+                    const t = log.raw_webhook_data?.llm_ticks || {};
+                    const a = { ...(t.agent1 || {}), ...(t.agent2 || {}), ...(t.agent3 || {}) };
+                    const phone = a.phoneNumberPurchased || a.phonePurchased;
+                    const build = a.agentBuildCompleted || a.agentBuildStarted;
+                    return phone === 'verified' && build === 'verified';
+                  })
+                  .map(([id]) => id);
+              } else if (status === 'phone_pending') {
+                // Phone explicitly NOT yet purchased
+                matchingIds = Object.entries(byLead)
+                  .filter(([, log]) => {
+                    const t = log.raw_webhook_data?.llm_ticks || {};
+                    const a = { ...(t.agent1 || {}), ...(t.agent2 || {}), ...(t.agent3 || {}) };
+                    const phone = a.phoneNumberPurchased || a.phonePurchased;
+                    return phone === 'not_yet';
+                  })
+                  .map(([id]) => id);
+              } else if (status === 'build_not_started') {
+                // Agent build not yet done (not_yet or not_asked but had real call > 30s)
+                matchingIds = Object.entries(byLead)
+                  .filter(([, log]) => {
+                    const t = log.raw_webhook_data?.llm_ticks || {};
+                    const a = { ...(t.agent1 || {}), ...(t.agent2 || {}), ...(t.agent3 || {}) };
+                    const build = a.agentBuildCompleted || a.agentBuildStarted;
+                    const dur = log.duration || 0;
+                    return dur > 30 && (build === 'not_yet' || build === 'not_asked');
+                  })
+                  .map(([id]) => id);
+              } else if (status === 'not_interested_filter') {
+                // Short calls (dropped) or explicit not_interested in final_status
+                matchingIds = Object.entries(byLead)
+                  .filter(([, log]) => (log.duration || 0) < 20)
+                  .map(([id]) => id);
+              }
+
+              if (matchingIds.length > 0) {
+                query = query.in('id', matchingIds);
+              } else {
+                // No matches — return empty
+                res.json({ success: true, leads: [] });
+                return;
+              }
+            } else {
+              res.json({ success: true, leads: [] });
+              return;
+            }
+          } else if (status === 'Not Interested') {
+            query = query.eq('final_status', 'Not Interested');
           } else if (status !== 'all') {
             query = query.eq('final_status', status);
           }
