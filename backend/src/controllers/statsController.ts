@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { isSupabaseConfigured, supabase, inMemoryDB } from '../config/db';
+import { analyzeCallWithLLM } from '../services/llmAnalysisService';
 
 export class StatsController {
   public getDashboardStats = async (req: Request, res: Response): Promise<void> => {
@@ -128,6 +129,86 @@ export class StatsController {
       });
 
       res.json({ success: true, participants });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  };
+  public analyzeAllCalls = async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!isSupabaseConfigured || !supabase) {
+        res.json({ success: true, results: [], message: 'Supabase not configured' });
+        return;
+      }
+
+      // Fetch all call logs
+      const { data: logs, error } = await supabase
+        .from('call_logs')
+        .select('lead_id, summary, transcript, duration, raw_webhook_data')
+        .order('created_at', { ascending: false });
+
+      if (error || !logs) {
+        res.status(500).json({ success: false, error: error?.message || 'No data' });
+        return;
+      }
+
+      // Fetch lead phone numbers
+      const leadIds = [...new Set(logs.map((l: any) => l.lead_id))];
+      const { data: leads } = await supabase.from('leads').select('id, phone').in('id', leadIds);
+      const leadPhoneMap: Record<string, string> = Object.fromEntries(
+        (leads || []).map((l: any) => [l.id, l.phone])
+      );
+
+      // Latest log per lead only (avoid duplicate processing)
+      const byLead: Record<string, any> = {};
+      for (const log of logs) {
+        if (!byLead[log.lead_id]) byLead[log.lead_id] = log;
+      }
+
+      // Run LLM analysis on each lead in parallel (batches of 5)
+      const entries = Object.entries(byLead);
+      const results = [];
+      const BATCH = 5;
+
+      for (let i = 0; i < entries.length; i += BATCH) {
+        const batch = entries.slice(i, i + BATCH);
+        const batchResults = await Promise.all(
+          batch.map(([leadId, log]) =>
+            analyzeCallWithLLM(
+              leadId,
+              leadPhoneMap[leadId] || 'unknown',
+              log.raw_webhook_data || {},
+              log.duration || 0,
+              log.transcript || '',
+              log.summary || ''
+            )
+          )
+        );
+        results.push(...batchResults);
+      }
+
+      // Sort: most actionable first
+      results.sort((a, b) => {
+        const score = (r: any) =>
+          (r.phoneBought === 'yes' ? 100 : 0) +
+          (r.agentBuild === 'completed' ? 80 : r.agentBuild === 'in_progress' ? 40 : 0) +
+          (r.interest === 'interested' ? 20 : 0) +
+          (r.interest === 'not_interested' ? -50 : 0) +
+          (r.callDropped ? -30 : 0);
+        return score(b) - score(a);
+      });
+
+      const summary = {
+        total: results.length,
+        interested: results.filter(r => r.interest === 'interested').length,
+        notInterested: results.filter(r => r.interest === 'not_interested').length,
+        callDropped: results.filter(r => r.callDropped).length,
+        phoneBought: results.filter(r => r.phoneBought === 'yes').length,
+        agentCompleted: results.filter(r => r.agentBuild === 'completed').length,
+        agentInProgress: results.filter(r => r.agentBuild === 'in_progress').length,
+        needsFollowUp: results.filter(r => r.followUpNeeded).length,
+      };
+
+      res.json({ success: true, summary, results });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

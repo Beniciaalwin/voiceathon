@@ -5,5 +5,6 @@ const router = Router();
 
 router.get('/stats', statsController.getDashboardStats);
 router.get('/participant-intel', statsController.getParticipantIntel);
+router.get('/analyze-calls', statsController.analyzeAllCalls);
 
 export default router;
