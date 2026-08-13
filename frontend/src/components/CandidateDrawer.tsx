@@ -105,7 +105,14 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
     return false;
   }) || calls[0];
 
-  const isCallConnected = Boolean(calls.length > 0 && calls.some(c => (c.duration > 0 || c.call_status === 'completed') && c.call_status !== 'failed'));
+  // A REAL conversation requires >25 seconds AND some transcript content (not just "No conversation")
+  const hasRealConversation = calls.some(c => {
+    const transcript = (c.transcript || '').toLowerCase();
+    const isDropped = !transcript || transcript.includes('no conversation took place') || transcript.trim().length < 30;
+    return (c.duration || 0) > 25 && !isDropped;
+  });
+
+  const isCallConnected = hasRealConversation;
 
   const isNotInterested = Boolean(
     lead.final_status === 'Not Interested' ||
@@ -218,7 +225,8 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       fullCallText.includes('submission date');
 
     if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || llmTicks?.agent1?.aug21DeadlineConveyed === 'verified' || textConfirmsDeadline) return 'verified';
-    return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
+    // Only auto-verify if there was a REAL conversation (not a dropped call)
+    return 'not_yet';
   })();
 
   // Dynamic Simple Summary of What Participant Has Done (Transcript + AI Summary + JSON Payload Synthesis)
@@ -232,9 +240,22 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
       };
     }
 
+    // Call dropped — no real conversation
+    if (!hasRealConversation) {
+      const maxDuration = Math.max(...calls.map(c => c.duration || 0), 0);
+      return {
+        phone: '⚪ Not Discussed (Call Dropped)',
+        build: '⚪ Not Discussed (Call Dropped)',
+        participation: `⚠️ Call Dropped — ${maxDuration}s only, no conversation`,
+        spokenQuote: 'Call ended before any conversation could take place. Follow-up needed.',
+      };
+    }
+
     const phoneDone = phonePurchasedTick === 'verified' ? '✅ Purchased Phone Number & Paid Bill' : '🔴 Phone Number Not Purchased Yet';
     const buildDone = agentBuildStartedTick === 'verified' ? '✅ start பண்ணிட்டார் (Started Building Voice Agent)' : '🔴 Agent Build Not Started Yet';
-    const eventDone = '🟢 Confirmed Participating in Voiceathon (Aug 21 Deadline)';
+    const eventDone = deadlineConveyedTick === 'verified'
+      ? '🟢 Confirmed Participating in Voiceathon (Aug 21 Deadline)'
+      : '🟡 Participation Not Yet Confirmed';
 
     const spokenQuote = latestCall?.raw_webhook_data?.dispositionResult?.evidence ||
       latestCall?.summary ||
