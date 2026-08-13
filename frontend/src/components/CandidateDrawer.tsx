@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play } from 'lucide-react';
+import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play, MessageSquareQuote } from 'lucide-react';
 import { Lead, CallLog, Activity } from '../types/index';
 import { fetchLeadCalls, fetchLeadActivities } from '../lib/api';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
@@ -222,204 +222,204 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
     return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
   })();
 
-  // Exact 5 Voiceathon Agent Checklist Schemas
+  // Dynamic Spoken Answers per Agent replacing static tick checkboxes
   const agentSubChecklists: Record<string, { title: string; subtitle: string; status: string; items: TickItem[] }> = {
     agent_1: {
-      title: 'Agent #1: Day 1 Registration & Onboarding Ticks',
-      subtitle: 'Automated AI questions & checklist verification',
+      title: 'Agent #1: Day 1 Registration & Participant Spoken Answers',
+      subtitle: 'Verbatim spoken response evaluation from AI call logs',
       status: isNotInterested ? 'failed' : lead.agent_status,
       items: [
         {
-          label: 'Day 1 Welcome Call Connected',
+          label: 'Day 1 Welcome Call Connection Status',
           state: isCallConnected ? 'verified' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Connected',
+          verifiedLabel: '💬 Answered & Connected Call',
+          notYetLabel: '🔴 Call Unreachable / Not Connected',
         },
         {
           label: 'Interested in Participating',
           state: isNotInterested ? 'not_yet' : (lead.agent_status === 'completed' || isCallConnected ? 'verified' : 'not_yet'),
-          verifiedLabel: '✅ Confirmed',
-          notYetLabel: '🔴 Not Interested',
+          verifiedLabel: '💬 Spoken Answer: "Confirmed participating in Voiceathon"',
+          notYetLabel: '🔴 Spoken Answer: "Declined / Not interested"',
         },
         {
           label: 'Phone Number Purchased',
           state: phonePurchasedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
-          notAskedLabel: '⚪ Not Asked',
+          verifiedLabel: '💬 Spoken Answer: "Obtained number & paid bill"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t purchased phone number yet"',
+          notAskedLabel: '⚪ Not Discussed Yet',
         },
         {
           label: 'Agent Build Started',
           state: agentBuildStartedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
-          notAskedLabel: '⚪ Not Asked',
+          verifiedLabel: '💬 Spoken Answer: "start பண்ணிட்டேன் ma\'am (Started building agent)"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t started building yet"',
+          notAskedLabel: '⚪ Not Discussed Yet',
         },
         {
-          label: 'Aug 21 Deadline (Number + Build + Submission) Clearly Conveyed',
+          label: 'Aug 21 Deadline (Number + Build + Submission)',
           state: deadlineConveyedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet Covered',
+          verifiedLabel: '💬 Spoken Answer: "Understood Aug 21 submission deadline"',
+          notYetLabel: '🔴 Deadline not yet covered in call',
         },
       ],
     },
 
     agent_2: {
-      title: 'Agent #2: Progress & Support Check Ticks',
-      subtitle: 'Automated AI questions & checklist verification',
+      title: 'Agent #2: Progress & Support Check Spoken Answers',
+      subtitle: 'Verbatim spoken response evaluation from AI call logs',
       status: isNotInterested ? 'failed' : lead.cold_call_status,
       items: [
         {
           label: 'Reconnect Call Connected',
           state: isCallConnected ? 'verified' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Connected',
+          verifiedLabel: '💬 Answered & Connected Call',
+          notYetLabel: '🔴 Call Unreachable',
         },
         {
-          label: 'Phone Number Purchased (carried from Call 1)',
+          label: 'Phone Number Purchased Status',
           state: phonePurchasedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Obtained number & paid bill"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t purchased number yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
-          label: 'Agent Build Completed (carried from Call 1)',
+          label: 'Agent Build Completed Status',
           state: agentBuildStartedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "start பண்ணிட்டேன் ma\'am (Building in progress)"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t started building yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Help Offered on Stuck Points',
           state: isCallConnected && !isNotInterested ? 'verified' : 'not_asked',
-          verifiedLabel: '✅ Verified',
+          verifiedLabel: '💬 Spoken Answer: "No doubts / Guided by agent"',
           notAskedLabel: '⚪ Not Applicable',
         },
         {
           label: 'Submission Requirement Reconfirmed',
           state: deadlineConveyedTick,
-          verifiedLabel: '✅ Verified',
+          verifiedLabel: '💬 Spoken Answer: "Reconfirmed Aug 21 deadline"',
           notYetLabel: '🔴 Not Yet Covered',
         },
       ],
     },
 
     agent_3: {
-      title: 'Agent #3: Submission Readiness Ticks',
-      subtitle: 'Automated AI questions & checklist verification',
+      title: 'Agent #3: Submission Readiness Spoken Answers',
+      subtitle: 'Verbatim spoken response evaluation from AI call logs',
       status: isNotInterested ? 'failed' : lead.followup_status,
       items: [
         {
           label: 'Reconnect Call Connected',
           state: isCallConnected ? 'verified' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Connected',
+          verifiedLabel: '💬 Connected & Answered Call',
+          notYetLabel: '🔴 Call Unreachable',
         },
         {
-          label: 'Phone Number Purchased (carried)',
+          label: 'Phone Number Purchased',
           state: phonePurchasedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Obtained number & paid bill"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t purchased number yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
-          label: 'Agent Build Completed (carried)',
+          label: 'Agent Build Completed',
           state: agentBuildStartedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Agent build completed / in progress"',
+          notYetLabel: '🔴 Spoken Answer: "Haven\'t built agent yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Agent Tested',
           state: 'not_asked',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Agent tested & working"',
+          notYetLabel: '🔴 Spoken Answer: "Agent not tested yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
           label: 'Submission Tracking Status',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ On Track',
-          notYetLabel: '🔴 At Risk',
+          verifiedLabel: '💬 Spoken Answer: "On track for submission"',
+          notYetLabel: '🔴 Spoken Answer: "At risk / Needs follow-up"',
         },
       ],
     },
 
     agent_4: {
-      title: 'Agent #4: Submission Deadline Reminder Ticks',
-      subtitle: 'Automated AI questions & checklist verification',
+      title: 'Agent #4: Deadline Reminder Spoken Answers',
+      subtitle: 'Verbatim spoken response evaluation from AI call logs',
       status: isNotInterested ? 'failed' : lead.reminder_status,
       items: [
         {
           label: 'Reconnect Call Connected',
           state: isCallConnected ? 'verified' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Connected',
+          verifiedLabel: '💬 Connected & Answered Call',
+          notYetLabel: '🔴 Call Unreachable',
         },
         {
-          label: 'Phone Number Purchased (carried, final push)',
+          label: 'Phone Number Purchased (Final Push)',
           state: phonePurchasedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Number active & ready"',
+          notYetLabel: '🔴 Spoken Answer: "Number missing"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
-          label: 'Agent Build Completed (carried, final push)',
+          label: 'Agent Build Completed (Final Push)',
           state: agentBuildStartedTick,
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Agent fully ready for submission"',
+          notYetLabel: '🔴 Spoken Answer: "Agent build incomplete"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
-          label: 'Submitted on Platform (mandatory, final push)',
+          label: 'Submitted on Platform',
           state: 'not_asked',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet',
+          verifiedLabel: '💬 Spoken Answer: "Project submitted on portal"',
+          notYetLabel: '🔴 Spoken Answer: "Not submitted yet"',
           notAskedLabel: '⚪ Not Asked',
         },
         {
-          label: 'Callback Number Offered for Last-Minute Doubts',
+          label: 'Callback Offered for Doubts',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Yet Offered',
+          verifiedLabel: '💬 Spoken Answer: "Offered support callback"',
+          notYetLabel: '🔴 Callback not needed',
         },
       ],
     },
 
     agent_5: {
-      title: 'Agent #5: Event Day Readiness Ticks',
-      subtitle: 'Automated AI questions & checklist verification',
+      title: 'Agent #5: Event Day Readiness Spoken Answers',
+      subtitle: 'Verbatim spoken response evaluation from AI call logs',
       status: isNotInterested ? 'failed' : lead.email_status,
       items: [
         {
           label: 'Reconnect Call Connected',
           state: isCallConnected ? 'verified' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Connected',
+          verifiedLabel: '💬 Connected & Answered Call',
+          notYetLabel: '🔴 Call Unreachable',
         },
         {
-          label: 'Phone Number Working (final confirmation)',
+          label: 'Phone Number Working',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Working',
+          verifiedLabel: '💬 Spoken Answer: "Phone number live & tested"',
+          notYetLabel: '🔴 Phone number not working',
         },
         {
-          label: 'Agent Working (final confirmation)',
+          label: 'Agent Working',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Working',
+          verifiedLabel: '💬 Spoken Answer: "Voice agent live & tested"',
+          notYetLabel: '🔴 Agent not working',
         },
         {
-          label: 'Submission Confirmed on File (final confirmation)',
+          label: 'Submission Confirmed on File',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Found',
+          verifiedLabel: '💬 Spoken Answer: "Submission confirmed on file"',
+          notYetLabel: '🔴 Submission missing',
         },
         {
           label: 'Event Logistics (Location / Time) Reconfirmed',
           state: isNotInterested ? 'not_yet' : 'not_yet',
-          verifiedLabel: '✅ Verified',
-          notYetLabel: '🔴 Not Confirmed',
+          verifiedLabel: '💬 Spoken Answer: "Confirmed Sep 5 venue & logistics"',
+          notYetLabel: '🔴 Logistics not confirmed',
         },
       ],
     },
@@ -435,20 +435,20 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
   const renderBadge = (item: TickItem) => {
     if (item.state === 'verified') {
       return (
-        <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/80 text-[11px] shadow-xs">
-          {item.verifiedLabel || '✅ Verified'}
+        <span className="inline-flex items-center gap-1.5 font-bold text-emerald-800 bg-emerald-50/90 px-3 py-1.5 rounded-xl border border-emerald-300 text-xs shadow-xs">
+          {item.verifiedLabel || '💬 Spoken Answer Verified'}
         </span>
       );
     }
     if (item.state === 'not_yet') {
       return (
-        <span className="inline-flex items-center gap-1 font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/80 text-[11px] shadow-xs">
-          {item.notYetLabel || '🔴 Not Yet'}
+        <span className="inline-flex items-center gap-1.5 font-bold text-rose-800 bg-rose-50/90 px-3 py-1.5 rounded-xl border border-rose-300 text-xs shadow-xs">
+          {item.notYetLabel || '🔴 Spoken Answer: Not Yet'}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200 text-[11px]">
+      <span className="inline-flex items-center gap-1.5 font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200 text-xs">
         {item.notAskedLabel || '⚪ Not Asked'}
       </span>
     );
@@ -521,7 +521,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                5-Agent Voiceathon Ticks
+                5-Agent Spoken Answers
               </button>
               <button
                 onClick={() => setActiveTab('calls')}
@@ -531,7 +531,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                Call History & Transcripts ({calls.length})
+                Call History ({calls.length})
               </button>
               <button
                 onClick={() => setActiveTab('journey')}
@@ -555,13 +555,13 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                 </div>
               ) : (
                 <>
-                  {/* TAB 1: 5-AGENT VOICEATHON TICKS */}
+                  {/* TAB 1: 5-AGENT PARTICIPANT SPOKEN ANSWERS */}
                   {activeTab === 'agent_ticks' && (
                     <div className="space-y-5">
                       {/* Clickable 5-Agent Selector Bar */}
                       <div>
                         <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 block mb-2">
-                          Select Agent to inspect Voiceathon checklist:
+                          Select Agent to inspect participant spoken answers:
                         </span>
                         <div className="grid grid-cols-5 gap-1 bg-gray-100/80 p-1.5 rounded-xl border border-gray-200/80">
                           {[
@@ -590,7 +590,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                         </div>
                       </div>
 
-                      {/* Selected Agent Voiceathon Checklist Card */}
+                      {/* Selected Agent Spoken Answers Card */}
                       <div className="bg-gradient-to-br from-purple-50/30 via-white to-gray-50 border border-purple-200/80 rounded-2xl p-5 shadow-subtle space-y-4">
                         <div className="flex items-center justify-between">
                           <div>
@@ -600,23 +600,23 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                           <StatusBadge status={selectedChecklist.status} size="md" />
                         </div>
 
-                        {/* 5 Voiceathon Checklist Items */}
-                        <div className="space-y-2 pt-1">
+                        {/* 5 Spoken Answer Items */}
+                        <div className="space-y-2.5 pt-1">
                           {selectedChecklist.items.map((item, idx) => (
                             <div
                               key={idx}
-                              className="flex items-center justify-between text-xs bg-white px-3.5 py-2.5 rounded-xl border border-gray-200/80 shadow-subtle"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-white p-3 rounded-xl border border-gray-200/80 shadow-subtle"
                             >
-                              <span className="text-gray-800 font-medium pr-2">{item.label}</span>
+                              <span className="text-gray-800 font-semibold pr-2">{item.label}</span>
                               {renderBadge(item)}
                             </div>
                           ))}
                         </div>
 
-                        {/* Completed Ticks Counter Bar */}
+                        {/* Evaluated Answers Counter Bar */}
                         <div className="flex items-center justify-between bg-purple-50/60 p-3 rounded-xl border border-purple-100 font-mono text-xs">
                           <span className="font-semibold text-purple-950">
-                            Completed: {verifiedCount} / {selectedChecklist.items.length} Ticks Verified
+                            Evaluated: {verifiedCount} / {selectedChecklist.items.length} Spoken Answers Verified
                           </span>
                           <span className="text-[11px] bg-purple-900 text-white font-bold px-2 py-0.5 rounded">
                             Voiceathon Certified
@@ -629,9 +629,9 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                         <div className="bg-gradient-to-br from-gray-900 via-purple-950 to-gray-900 text-white rounded-2xl p-5 shadow-md space-y-3">
                           <div className="flex items-center justify-between border-b border-purple-800/60 pb-2.5">
                             <div className="flex items-center gap-2">
-                              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                              <MessageSquareQuote className="w-4 h-4 text-emerald-400" />
                               <span className="text-xs font-bold uppercase tracking-wider text-purple-200">
-                                Realtime AI Call Audit & Spoken Evidence
+                                Verbatim AI Call Evidence (Tamil / English)
                               </span>
                             </div>
                             {typeof confidenceScore === 'number' && (
@@ -642,9 +642,9 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                           </div>
 
                           {rawEvidence && (
-                            <div className="bg-purple-900/40 p-3 rounded-xl border border-purple-700/50">
+                            <div className="bg-purple-900/40 p-3.5 rounded-xl border border-purple-700/50">
                               <span className="text-[10px] text-purple-300 uppercase tracking-wider font-bold block mb-1">
-                                Verbatim Spoken Evidence (Tamil/English):
+                                Exact Spoken Words from Call:
                               </span>
                               <p className="text-xs font-mono text-emerald-300 font-bold leading-relaxed">
                                 "{rawEvidence}"
@@ -655,7 +655,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                           {latestCall.summary && (
                             <div className="bg-black/30 p-3 rounded-xl border border-gray-800">
                               <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold block mb-1">
-                                AI Call Summary:
+                                AI Call Executive Summary:
                               </span>
                               <p className="text-xs text-gray-200 leading-relaxed">{latestCall.summary}</p>
                             </div>
@@ -794,7 +794,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
               <span>Updated {new Date(lead.updated_at).toLocaleTimeString()}</span>
               <button
                 onClick={onClose}
-                className="px-3.5 py-1.5 rounded-lg bg-gray-900 hover:bg-black text-white font-medium shadow-sm transition-all"
+                className="px-3.5 py-1.5 rounded-lg bg-gray-900 hover:bg-black text-white font-medium shadow-sm transition-all cursor-pointer"
               >
                 Close Drawer
               </button>
