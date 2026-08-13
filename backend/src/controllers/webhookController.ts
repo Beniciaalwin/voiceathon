@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import { snapserveWebhookService } from '../services/snapserveWebhookService';
-import { statusEngine } from '../services/statusEngine';
-import { llmSummaryParser } from '../services/llmSummaryParser';
 import { isSupabaseConfigured, supabase, inMemoryDB } from '../config/db';
-import { Lead, CallLog, Activity, WebhookLog } from '../types';
+import { snapserveWebhookService } from '../services/snapserveWebhookService';
+import { llmSummaryParser } from '../services/llmSummaryParser';
+import { statusEngine } from '../services/statusEngine';
+import { Lead } from '../types';
 
 export class WebhookController {
   public handleSnapServeWebhook = async (req: Request, res: Response): Promise<void> => {
@@ -26,7 +26,7 @@ export class WebhookController {
 
     let normalizedEvent;
     try {
-      // 1. Normalize SnapServe payload
+      // 1. Normalize SnapServe payload (unwrapping data if nested)
       normalizedEvent = snapserveWebhookService.parseWebhookPayload(rawPayload);
     } catch (err: any) {
       console.error('[Webhook Parse Error]', err.message);
@@ -64,15 +64,17 @@ export class WebhookController {
         rawPayload
       );
 
-      // 3. Identify or Create Lead
+      // 3. Robust Lead Matching by last 10 digits of phone or email
       let lead: Lead | null = null;
+      const phoneDigits = (normalizedEvent.phone || '').replace(/[^0-9]/g, '');
+      const last10Digits = phoneDigits.slice(-10);
 
       if (isSupabaseConfigured && supabase) {
         let query = supabase.from('leads').select('*');
-        if (normalizedEvent.email) {
-          query = query.or(`phone.eq.${normalizedEvent.phone},email.eq.${normalizedEvent.email}`);
-        } else {
-          query = query.eq('phone', normalizedEvent.phone);
+        if (last10Digits.length >= 7) {
+          query = query.or(`phone.ilike.%${last10Digits}%`);
+        } else if (normalizedEvent.email) {
+          query = query.eq('email', normalizedEvent.email);
         }
         const { data: existingLeads } = await query;
 
@@ -127,6 +129,8 @@ export class WebhookController {
 
       // 4. Evaluate new lead status via StatusEngine
       const updatedLead = statusEngine.evaluateLeadStatus(lead, normalizedEvent);
+      updatedLead.last_activity = new Date().toISOString();
+      updatedLead.updated_at = new Date().toISOString();
 
       // 5. Save updated lead
       if (isSupabaseConfigured && supabase) {
@@ -179,12 +183,6 @@ export class WebhookController {
         activity_type: normalizedEvent.event,
         status: normalizedEvent.callStatus === 'completed' ? ('completed' as const) : ('failed' as const),
         description: activityDesc,
-        metadata: {
-          outcome: normalizedEvent.outcome,
-          callbackRequired: normalizedEvent.callbackRequired,
-          callbackTime: normalizedEvent.callbackTime,
-          llmTicks,
-        },
       };
 
       if (isSupabaseConfigured && supabase) {
@@ -193,34 +191,48 @@ export class WebhookController {
         inMemoryDB.addActivity(activityData as any);
       }
 
-      // 8. Log successful Webhook Event
-      const successLog = {
+      // 8. Log Successful Webhook
+      const webhookLogData = {
         event_type: normalizedEvent.event,
         call_id: normalizedEvent.callId,
         phone: normalizedEvent.phone,
         status: 'Processed' as const,
-        raw_payload: enrichedPayload,
+        raw_payload: rawPayload,
       };
 
       if (isSupabaseConfigured && supabase) {
-        await supabase.from('webhook_logs').insert(successLog);
+        await supabase.from('webhook_logs').insert(webhookLogData);
       } else {
-        inMemoryDB.addWebhookLog(successLog);
+        inMemoryDB.addWebhookLog(webhookLogData);
       }
+
+      console.log(`[Webhook Processed Successfully] Lead ID: ${lead.id}, Phone: ${normalizedEvent.phone}`);
 
       res.status(200).json({
         success: true,
-        message: 'Webhook processed successfully',
-        data: {
-          leadId: lead.id,
-          leadName: lead.name,
-          finalStatus: updatedLead.final_status,
-          callId: normalizedEvent.callId,
-          llmTicks,
-        },
+        message: 'SnapServe webhook processed successfully',
+        leadId: lead.id,
+        finalStatus: updatedLead.final_status,
       });
     } catch (err: any) {
-      console.error('[Webhook Controller Failure]', err);
+      console.error('[Webhook Controller Critical Error]', err);
+
+      // Log failed webhook to DB
+      const failedLog = {
+        event_type: normalizedEvent?.event || rawPayload?.event || 'unknown',
+        call_id: normalizedEvent?.callId || rawPayload?.call_id,
+        phone: normalizedEvent?.phone || rawPayload?.phone,
+        status: 'Failed' as const,
+        error_message: err.message,
+        raw_payload: rawPayload,
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from('webhook_logs').insert(failedLog);
+      } else {
+        inMemoryDB.addWebhookLog(failedLog);
+      }
+
       res.status(500).json({
         success: false,
         error: 'Internal server error processing webhook',
@@ -232,16 +244,24 @@ export class WebhookController {
   public getWebhookLogs = async (req: Request, res: Response): Promise<void> => {
     try {
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase
-          .from('webhook_logs')
-          .select('*')
-          .order('received_at', { ascending: false })
-          .limit(50);
-        if (error) throw error;
-        res.json({ success: true, logs: data });
-      } else {
-        res.json({ success: true, logs: inMemoryDB.getWebhookLogs() });
+        try {
+          const { data, error } = await supabase
+            .from('webhook_logs')
+            .select('*')
+            .order('received_at', { ascending: false })
+            .limit(50);
+
+          if (!error && data) {
+            res.json({ success: true, logs: data });
+            return;
+          }
+        } catch (dbErr: any) {
+          console.warn('[Supabase WebhookLogs Error] Falling back to inMemoryDB:', dbErr.message);
+        }
       }
+
+      const logs = inMemoryDB.getWebhookLogs();
+      res.json({ success: true, logs });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

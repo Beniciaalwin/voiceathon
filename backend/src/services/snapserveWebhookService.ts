@@ -3,94 +3,120 @@ import { SnapServeNormalizedEvent } from '../types';
 export class SnapServeWebhookService {
   /**
    * Normalizes incoming raw SnapServe payload into standard internal SnapServeNormalizedEvent format.
-   * Flexibly extracts phone numbers from all possible metadata, fields, and fallback structures so webhooks NEVER fail.
+   * Flexibly unwraps rawPayload.data and extracts phone numbers, call IDs, transcripts, and summaries.
    */
   public parseWebhookPayload(rawPayload: any): SnapServeNormalizedEvent {
     if (!rawPayload || typeof rawPayload !== 'object') {
       throw new Error('Invalid payload: expected JSON object');
     }
 
+    // SnapServe payloads wrap inner event details inside `data` object
+    const payload = rawPayload.data || rawPayload;
+
     // Extract event type from payload
     const rawEvent =
       rawPayload.event ||
       rawPayload.event_type ||
       rawPayload.type ||
-      rawPayload.action ||
+      payload.event ||
+      payload.event_type ||
+      payload.type ||
+      payload.action ||
       'call.completed';
 
+    // Clean phone number helper
+    const sanitizePhone = (p: any): string => {
+      if (!p) return '';
+      const str = String(p).trim().replace(/[^0-9]/g, '');
+      return str;
+    };
+
     // Extract phone number from all potential metadata, fields, and nested structures
-    let phone =
+    let rawPhone =
+      payload.phone ||
+      payload.phone_number ||
+      payload.phoneNumber ||
+      payload.customerPhone ||
+      payload.customer_phone ||
+      payload.toNumber ||
+      payload.to_number ||
+      payload.to ||
+      payload.metadata?.callerKey ||
+      payload.metadata?.phone ||
+      payload.metadata?.phoneNumber ||
+      payload.metadata?.customerPhone ||
+      payload.metadata?.customer_phone ||
+      payload.metadata?.to ||
+      payload.metadata?.toNumber ||
+      payload.metadata?.destination ||
+      payload.fields?.phone ||
+      payload.fields?.phone_number ||
+      payload.fields?.phoneNumber ||
+      payload.fields?.to ||
+      payload.leadData?.phone_number ||
+      payload.leadData?.phone ||
+      payload.customer?.phone ||
+      payload.customer?.phone_number ||
+      payload.contact?.phone ||
+      payload.lead?.phone ||
+      payload.fromNumber ||
+      payload.from_number ||
       rawPayload.phone ||
       rawPayload.phone_number ||
-      rawPayload.phoneNumber ||
       rawPayload.customerPhone ||
-      rawPayload.customer_phone ||
-      rawPayload.toNumber ||
-      rawPayload.to_number ||
-      rawPayload.to ||
       rawPayload.metadata?.callerKey ||
-      rawPayload.metadata?.phone ||
-      rawPayload.metadata?.phoneNumber ||
-      rawPayload.metadata?.customerPhone ||
-      rawPayload.metadata?.customer_phone ||
-      rawPayload.metadata?.to ||
-      rawPayload.metadata?.toNumber ||
-      rawPayload.metadata?.destination ||
-      rawPayload.fields?.phone ||
-      rawPayload.fields?.phone_number ||
-      rawPayload.fields?.phoneNumber ||
-      rawPayload.fields?.to ||
-      rawPayload.leadData?.phone_number ||
-      rawPayload.leadData?.phone ||
-      rawPayload.customer?.phone ||
-      rawPayload.customer?.phone_number ||
-      rawPayload.contact?.phone ||
-      rawPayload.lead?.phone ||
-      rawPayload.fromNumber ||
-      rawPayload.from_number ||
       '';
 
-    // Fallback gracefully to default participant phone so webhooks NEVER fail with missing phone error
+    let phone = sanitizePhone(rawPhone);
+
+    // Fallback gracefully to default participant phone if missing
     if (!phone) {
       phone = '919342042401';
     }
 
     // Extract call identifier
-    const callId = String(
+    const rawCallId =
+      payload.callId ||
+      payload.call_id ||
+      payload.id ||
+      payload.fields?.callId ||
+      payload.session_id ||
       rawPayload.callId ||
       rawPayload.call_id ||
-      rawPayload.fields?.callId ||
       rawPayload.id ||
-      rawPayload.session_id ||
-      `call_${Date.now()}`
-    );
+      `call_${Date.now()}`;
+
+    const callId = String(rawCallId).startsWith('call_') ? String(rawCallId) : `call_${rawCallId}`;
 
     // Extract agent ID
     const agentId =
+      payload.agentId ||
+      payload.agent_id ||
+      payload.bot_id ||
+      payload.assistant_id ||
+      payload.agentName ||
       rawPayload.agentId ||
-      rawPayload.agent_id ||
-      rawPayload.bot_id ||
-      rawPayload.assistant_id ||
       'agent_registration';
 
     // Determine call outcome / disposition
     const outcome = String(
-      rawPayload.dispositionResult?.outcome ||
-      rawPayload.dispositionResult?.sub ||
-      rawPayload.disposition ||
-      rawPayload.fields?.disposition ||
-      rawPayload.fields?.status ||
-      rawPayload.outcome ||
-      rawPayload.call_analysis?.custom_analysis_data?.outcome ||
-      rawPayload.result ||
+      payload.dispositionResult?.outcome ||
+      payload.dispositionResult?.sub ||
+      payload.disposition ||
+      payload.fields?.disposition ||
+      payload.fields?.status ||
+      payload.outcome ||
+      payload.call_analysis?.custom_analysis_data?.outcome ||
+      payload.result ||
+      payload.status ||
       'completed'
     ).toLowerCase();
 
     // Determine call status
     const rawStatus = (
-      rawPayload.call_status ||
-      rawPayload.status ||
-      rawPayload.disposition ||
+      payload.call_status ||
+      payload.status ||
+      payload.disposition ||
       outcome ||
       'completed'
     ).toLowerCase();
@@ -108,57 +134,60 @@ export class SnapServeWebhookService {
 
     // Extract duration (in seconds)
     let duration = 0;
-    if (typeof rawPayload.durationSeconds === 'number') {
-      duration = rawPayload.durationSeconds;
-    } else if (typeof rawPayload.duration === 'number') {
-      duration = rawPayload.duration;
-    } else if (typeof rawPayload.duration_seconds === 'number') {
-      duration = rawPayload.duration_seconds;
-    } else if (typeof rawPayload.call_length === 'number') {
-      duration = rawPayload.call_length;
+    if (typeof payload.durationSeconds === 'number') {
+      duration = payload.durationSeconds;
+    } else if (typeof payload.duration === 'number') {
+      duration = payload.duration;
+    } else if (typeof payload.duration_seconds === 'number') {
+      duration = payload.duration_seconds;
+    } else if (typeof payload.call_length === 'number') {
+      duration = payload.call_length;
     }
 
     // Combine ALL summary & notes sources (callSummary, fields.notes, dispositionResult.summary)
     const summaryParts = [
+      payload.callSummary,
+      payload.fields?.notes,
+      payload.dispositionResult?.summary,
+      payload.summary,
+      payload.call_summary,
+      payload.ai_summary,
+      payload.details,
       rawPayload.callSummary,
-      rawPayload.fields?.notes,
-      rawPayload.dispositionResult?.summary,
       rawPayload.summary,
-      rawPayload.call_summary,
-      rawPayload.ai_summary,
-      rawPayload.details,
     ].filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
 
     const summary = Array.from(new Set(summaryParts)).join(' | ');
 
     // Combine ALL transcript & evidence sources (transcript, dispositionResult.evidence, dialogue)
     const transcriptParts = [
-      rawPayload.transcript,
-      rawPayload.dispositionResult?.evidence,
-      rawPayload.call_transcript,
-      rawPayload.dialogue,
-      rawPayload.text,
+      payload.transcript,
+      payload.dispositionResult?.evidence,
+      payload.call_transcript,
+      payload.dialogue,
+      payload.text,
       summary,
+      rawPayload.transcript,
     ].filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
 
     const transcript = Array.from(new Set(transcriptParts)).join(' | ');
 
     // Extract callback requirements
     const callbackRequired =
-      rawPayload.callback_required ??
-      rawPayload.requires_followup ??
-      rawPayload.call_analysis?.custom_analysis_data?.callback_required ??
+      payload.callback_required ??
+      payload.requires_followup ??
+      payload.call_analysis?.custom_analysis_data?.callback_required ??
       Boolean(outcome.includes('callback') || outcome.includes('followup'));
 
     const callbackTime =
-      rawPayload.callback_time ||
-      rawPayload.scheduled_callback_time ||
-      rawPayload.call_analysis?.custom_analysis_data?.callback_time ||
+      payload.callback_time ||
+      payload.scheduled_callback_time ||
+      payload.call_analysis?.custom_analysis_data?.callback_time ||
       undefined;
 
     // Contact info enrichment
-    const name = rawPayload.name || rawPayload.leadData?.name || rawPayload.fields?.name || rawPayload.customer?.name || rawPayload.contact?.name;
-    const email = rawPayload.email || rawPayload.fields?.email || rawPayload.customer?.email || rawPayload.contact?.email;
+    const name = payload.name || payload.leadData?.name || payload.fields?.name || payload.customer?.name || payload.contact?.name;
+    const email = payload.email || payload.fields?.email || payload.customer?.email || payload.contact?.email;
 
     return {
       event: rawEvent,
