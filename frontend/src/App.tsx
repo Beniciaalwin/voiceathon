@@ -7,6 +7,7 @@ import { CandidateDrawer } from './components/CandidateDrawer';
 import { WebhookLogsModal } from './components/WebhookLogsModal';
 import { WebhookSimulatorModal } from './components/WebhookSimulatorModal';
 import { ManagerReportModal } from './components/ManagerReportModal';
+import { ParticipantIntelPanel } from './components/ParticipantIntelPanel';
 import { Lead, DashboardStats } from './types/index';
 import { fetchLeads, fetchDashboardStats } from './lib/api';
 import { subscribeToRealtimeUpdates } from './lib/supabase';
@@ -153,6 +154,9 @@ export default function App() {
           loading={loading}
           onSelectLead={(lead) => setSelectedLead(lead)}
         />
+
+        {/* Participant Intelligence Panel — call summaries, phone bought, agent build */}
+        <ParticipantIntelPanel />
       </main>
 
       {/* Slide-over Candidate Drawer */}
