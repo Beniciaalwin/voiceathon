@@ -558,30 +558,96 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                 </div>
               </div>
 
-              {/* SIMPLE ACCOMPLISHMENT SUMMARY CARD (What Participant Has Done) */}
-              <div className="mt-4 bg-gradient-to-r from-purple-900 via-indigo-900 to-gray-900 text-white p-4 rounded-2xl shadow-md space-y-2 border border-purple-700/60">
-                <div className="flex items-center gap-2 border-b border-purple-700/50 pb-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
-                    Participant Accomplishments Summary (Enna Panni Irukkaru):
-                  </span>
-                </div>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center gap-2 font-medium text-emerald-300">
-                    <span>{whatParticipantHasDoneSummary.phone}</span>
+              {/* AI OUTCOME & REASON SUMMARY CARD */}
+              {(() => {
+                const latestCallOutcome = latestCall?.raw_webhook_data?.llm_outcome || {
+                  call_connected: isCallConnected,
+                  participant_answered: isCallConnected && !isNotInterested,
+                  interest: isNotInterested ? 'not_interested' : (isCallConnected ? 'interested' : 'unknown'),
+                  follow_up_required: lead.followup_status === 'pending',
+                  reminder_required: lead.reminder_status === 'pending',
+                  participated: lead.participated_status === 'completed',
+                  required_condition: lead.number_status === 'completed' ? 'completed' : (lead.number_status === 'pending' ? 'pending' : 'not_completed'),
+                  phone_valid: lead.number_status !== 'failed',
+                  final_outcome: lead.final_status === 'Not Interested' ? 'not_interested' : (lead.final_status === 'Completed' ? 'completed' : 'participated'),
+                  confidence: 0.8,
+                  reason: isNotInterested ? 'Participant declined during call.' : 'Status inferred from verified ticks.'
+                };
+
+                return (
+                  <div className="mt-4 bg-gradient-to-r from-purple-950 via-indigo-950 to-gray-950 text-white p-5 rounded-2xl shadow-md border border-purple-700/50 space-y-4">
+                    <div className="flex items-center justify-between border-b border-purple-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-amber-300">
+                          AI Conversation Outcome
+                        </span>
+                      </div>
+                      {latestCallOutcome.confidence && (
+                        <span className="bg-purple-900/80 text-purple-200 border border-purple-700 text-[10px] px-2 py-0.5 rounded-full font-mono">
+                          Confidence: {Math.round(latestCallOutcome.confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="text-purple-300 font-bold block mb-1">AI Outcome:</span>
+                        <span className="text-white font-bold text-sm bg-purple-900/50 border border-purple-800 px-2.5 py-1 rounded-lg inline-block">
+                          {lead.final_status}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-purple-300 font-bold block mb-1">Reason:</span>
+                        <span className="text-gray-200 block text-[11px] leading-relaxed">
+                          {latestCallOutcome.reason || 'No reasoning available.'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {latestCall?.summary && (
+                      <div className="pt-2 border-t border-purple-900/60">
+                        <span className="text-purple-300 font-bold block mb-1">Call Summary:</span>
+                        <p className="text-gray-300 text-[11px] leading-relaxed font-sans bg-black/20 p-2.5 rounded-lg border border-purple-950">
+                          {latestCall.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Timeline */}
+                    <div className="pt-2 border-t border-purple-900/60">
+                      <span className="text-purple-300 font-bold block mb-2">Conversation Timeline:</span>
+                      <div className="flex items-center gap-4 text-[11px] bg-black/10 p-2.5 rounded-xl border border-purple-950/60 font-mono">
+                        <div className="flex items-center gap-1">
+                          {latestCallOutcome.call_connected ? (
+                            <span className="text-emerald-400 font-bold">✓ Connected</span>
+                          ) : (
+                            <span className="text-rose-400 font-bold">✕ Disconnected</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {latestCallOutcome.participant_answered ? (
+                            <span className="text-emerald-400 font-bold">✓ Answered</span>
+                          ) : (
+                            <span className="text-rose-400 font-bold">✕ No Answer</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {latestCallOutcome.interest === 'interested' ? (
+                            <span className="text-emerald-400 font-bold">✓ Interested</span>
+                          ) : latestCallOutcome.interest === 'not_interested' ? (
+                            <span className="text-rose-400 font-bold">✕ Not Interested</span>
+                          ) : latestCallOutcome.interest === 'follow_up' ? (
+                            <span className="text-amber-400 font-bold">◷ Follow-up</span>
+                          ) : (
+                            <span className="text-gray-400 font-bold">⚪ Unknown</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 font-medium text-purple-200">
-                    <span>{whatParticipantHasDoneSummary.build}</span>
-                  </div>
-                  <div className="flex items-center gap-2 font-medium text-amber-200">
-                    <span>{whatParticipantHasDoneSummary.participation}</span>
-                  </div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-purple-800/80 text-[11px] font-mono text-emerald-300">
-                  <span className="text-purple-300 font-bold">Spoken Quote: </span>
-                  <span>"{whatParticipantHasDoneSummary.spokenQuote}"</span>
-                </div>
-              </div>
+                );
+              })()}
             </div>
 
             {/* Navigation Tabs */}

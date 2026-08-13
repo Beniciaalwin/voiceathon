@@ -9,6 +9,8 @@ interface HeaderProps {
   onOpenWebhookLogs: () => void;
   onOpenSimulator: () => void;
   onOpenManagerReport: () => void;
+  onReanalyze: () => void;
+  isReanalyzing: boolean;
   isLive: boolean;
 }
 
@@ -20,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWebhookLogs,
   onOpenSimulator,
   onOpenManagerReport,
+  onReanalyze,
+  isReanalyzing,
   isLive,
 }) => {
   return (
@@ -85,6 +89,21 @@ export const Header: React.FC<HeaderProps> = ({
             title="Refresh Data"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-black' : ''}`} />
+          </button>
+
+          {/* Rebuild DB Button */}
+          <button
+            onClick={onReanalyze}
+            disabled={isReanalyzing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold transition-all shadow-xs disabled:opacity-50"
+            title="Re-run Groq LLM on all call transcripts to rebuild participant statuses"
+          >
+            {isReanalyzing ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-900" />
+            ) : (
+              <Bot className="w-3.5 h-3.5 text-amber-700" />
+            )}
+            <span>{isReanalyzing ? 'Rebuilding...' : 'Rebuild DB from Webhooks'}</span>
           </button>
 
           {/* Webhook Simulator Trigger */}

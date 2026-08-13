@@ -1,149 +1,165 @@
-import { Lead, SnapServeNormalizedEvent, FinalStatus, ActivityStatus } from '../types';
+import { Lead, SnapServeNormalizedEvent, FinalStatus } from '../types';
+import { LLMOutcomeResult } from './llmOutcomeService';
 
 export class StatusEngine {
   /**
-   * Updates lead status fields based on incoming webhook event and returns updated lead object with newly computed final_status.
+   * Updates lead status fields based on incoming webhook event and LLM outcome analysis result.
    */
-  public evaluateLeadStatus(lead: Lead, event: SnapServeNormalizedEvent): Lead {
+  public evaluateLeadStatus(
+    lead: Lead,
+    event: SnapServeNormalizedEvent,
+    outcomeResult?: LLMOutcomeResult
+  ): Lead {
     const updatedLead: Lead = { ...lead };
 
-    const outcome = (event.outcome || '').toLowerCase();
-    const summary = (event.summary || '').toLowerCase();
-    const transcript = (event.transcript || '').toLowerCase();
-    const agId = (event.agentId || '').toLowerCase();
+    if (outcomeResult) {
+      // 1. Agent status (connected)
+      if (outcomeResult.call_connected) {
+        updatedLead.agent_status = 'completed';
+      } else if (updatedLead.agent_status !== 'completed') {
+        updatedLead.agent_status = 'failed';
+      }
 
-    const isNotInterested =
-      outcome.includes('not_interested') ||
-      outcome.includes('declined') ||
-      summary.includes('not interested') ||
-      summary.includes('lack of interest') ||
-      transcript.includes('not interested');
+      // 2. Cold Call status (answered)
+      if (outcomeResult.participant_answered) {
+        updatedLead.cold_call_status = 'completed';
+      } else if (updatedLead.cold_call_status !== 'completed') {
+        updatedLead.cold_call_status = 'failed';
+      }
 
-    const isCallSuccess = event.callStatus === 'completed' && event.outcome !== 'wrong_number' && !isNotInterested;
+      // 3. Follow-up status
+      if (outcomeResult.follow_up_required) {
+        updatedLead.followup_status = 'pending';
+      } else if (updatedLead.followup_status === 'pending') {
+        updatedLead.followup_status = 'not_started';
+      }
 
-    if (isNotInterested) {
-      updatedLead.agent_status = 'failed';
-      updatedLead.participated_status = 'failed';
+      // 4. Reminder status
+      if (outcomeResult.reminder_required) {
+        updatedLead.reminder_status = 'pending';
+      }
+
+      // 5. Number / required condition status
+      if (outcomeResult.required_condition === 'completed') {
+        updatedLead.number_status = 'completed';
+      } else if (outcomeResult.required_condition === 'pending') {
+        if (updatedLead.number_status !== 'completed') {
+          updatedLead.number_status = 'pending';
+        }
+      } else if (outcomeResult.required_condition === 'not_completed' || !outcomeResult.phone_valid) {
+        if (updatedLead.number_status !== 'completed') {
+          updatedLead.number_status = 'failed';
+        }
+      } else {
+        // 'not_discussed'
+        if (updatedLead.number_status !== 'completed' && updatedLead.number_status !== 'pending' && updatedLead.number_status !== 'failed') {
+          updatedLead.number_status = 'not_started';
+        }
+      }
+
+      // 6. Participated status
+      if (outcomeResult.participated) {
+        updatedLead.participated_status = 'completed';
+      } else if (outcomeResult.interest === 'not_interested') {
+        if (updatedLead.participated_status !== 'completed') {
+          updatedLead.participated_status = 'failed';
+        }
+      } else {
+        if (updatedLead.participated_status !== 'completed' && updatedLead.participated_status !== 'failed') {
+          updatedLead.participated_status = 'not_started';
+        }
+      }
+
+      // 7. Email / feedback status (completing all steps)
+      if (outcomeResult.final_outcome === 'completed') {
+        updatedLead.email_status = 'completed';
+      }
+
+      // Calculate final status
+      updatedLead.final_status = this.calculateFinalStatusFromState(updatedLead);
     } else {
-      // Re-engage participant on successful positive call
-      updatedLead.participated_status = 'completed';
+      // Fallback to legacy parser logic if no outcomeResult provided
+      const outcome = (event.outcome || '').toLowerCase();
+      const summary = (event.summary || '').toLowerCase();
+      const transcript = (event.transcript || '').toLowerCase();
 
-      const isAgent1 = agId === 'agent_registration' || agId === 'agent_snapserve_01' || agId === '456' || agId === 'agent_1' || agId.includes('agent1') || agId.includes('agent 1') || agId.includes('registration') || !agId;
-      const isAgent2 = agId === 'agent_tech_screening' || agId === 'agent_snapserve_02' || agId === '457' || agId === 'agent_2' || agId.includes('agent2') || agId.includes('agent 2') || agId.includes('tech') || agId.includes('screening') || agId.includes('progress') || agId.includes('support');
-      const isAgent3 = agId === 'agent_confirmation' || agId === '458' || agId === 'agent_3' || agId.includes('agent3') || agId.includes('agent 3') || agId.includes('confirmation') || agId.includes('readiness');
-      const isAgent4 = agId === 'agent_reminder' || agId === '459' || agId === 'agent_4' || agId.includes('agent4') || agId.includes('agent 4') || agId.includes('reminder') || agId.includes('deadline');
-      const isAgent5 = agId === 'agent_feedback' || agId === '460' || agId === 'agent_5' || agId.includes('agent5') || agId.includes('agent 5') || agId.includes('feedback') || agId.includes('event day');
+      const isNotInterested =
+        outcome.includes('not_interested') ||
+        outcome.includes('declined') ||
+        summary.includes('not interested') ||
+        transcript.includes('not interested');
 
-      // Agent 1: Day 1 — Registration & Onboarding Call
-      if (isAgent1) {
+      const isCallSuccess = event.callStatus === 'completed' && event.outcome !== 'wrong_number' && !isNotInterested;
+
+      if (isNotInterested) {
+        updatedLead.agent_status = 'failed';
+        updatedLead.participated_status = 'failed';
+      } else {
+        updatedLead.participated_status = 'completed';
         if (isCallSuccess) {
-          updatedLead.agent_status = 'completed'; // Green Tick ✓ for Agent 1!
-        } else {
-          updatedLead.agent_status = 'failed';
+          updatedLead.agent_status = 'completed';
+          updatedLead.cold_call_status = 'completed';
         }
       }
 
-      // Agent 2: Day 3 — Tech & Track Screening Call
-      if (isAgent2) {
-        if (isCallSuccess) {
-          updatedLead.cold_call_status = 'completed'; // Green Tick ✓ for Agent 2!
-        } else {
-          updatedLead.cold_call_status = 'failed';
-        }
+      if (event.numberValid === false || (event.callStatus === 'failed' && event.outcome?.includes('invalid'))) {
+        updatedLead.number_status = 'failed';
+      } else if (isCallSuccess) {
+        updatedLead.number_status = 'completed';
       }
 
-      // Agent 3: Day 5 — Attendance & Discord Confirmation Call
-      if (isAgent3) {
-        if (isCallSuccess) {
-          updatedLead.followup_status = 'completed'; // Green Tick ✓ for Agent 3!
-        } else {
-          updatedLead.followup_status = 'failed';
-        }
+      if (event.callbackRequired) {
+        updatedLead.followup_status = 'pending';
       }
 
-      // Agent 4: Day 7 — Opening Ceremony & Event Reminder Call
-      if (isAgent4) {
-        if (isCallSuccess) {
-          updatedLead.reminder_status = 'completed'; // Green Tick ✓ for Agent 4!
-        } else {
-          updatedLead.reminder_status = 'failed';
-        }
-      }
-
-      // Agent 5: Day 8 — Post-Hackathon Feedback & Survey Call
-      if (isAgent5) {
-        if (isCallSuccess) {
-          updatedLead.email_status = 'completed'; // Green Tick ✓ for Agent 5!
-        } else {
-          updatedLead.email_status = 'failed';
-        }
-      }
+      updatedLead.final_status = this.calculateFinalStatusFromState(updatedLead);
     }
 
-    // Phone number validation rule
-    if (event.numberValid === false || (event.callStatus === 'failed' && event.outcome?.includes('invalid'))) {
-      updatedLead.number_status = 'failed';
-    } else if (isCallSuccess) {
-      updatedLead.number_status = 'completed';
-    }
-
-    // Follow-up requested rule
-    if (event.callbackRequired) {
-      updatedLead.followup_status = 'pending';
-    }
-
-    // Calculate Final Status based on aggregated activity flags
-    updatedLead.final_status = this.calculateFinalStatus(updatedLead, event, isNotInterested);
     updatedLead.last_call_id = event.callId;
     updatedLead.last_activity = new Date().toISOString();
-
     return updatedLead;
   }
 
   /**
-   * Deterministic Calculation of Final Status
+   * Deterministic Calculation of Final Status based on Lead State
    */
-  public calculateFinalStatus(lead: Lead, latestEvent?: SnapServeNormalizedEvent, isNotInterested: boolean = false): FinalStatus {
-    // If latest call expressed lack of interest
-    if (isNotInterested) {
-      return 'Not Interested' as any;
+  public calculateFinalStatusFromState(lead: Lead): FinalStatus {
+    // If they explicitly declined
+    if (lead.participated_status === 'failed') {
+      return 'Not Interested';
     }
-
     // If phone number is invalid
-    if (lead.number_status === 'failed') {
+    if (lead.number_status === 'failed' && lead.cold_call_status === 'failed') {
       return 'Invalid Number';
     }
-
-    // If call failed
-    if (latestEvent?.callStatus === 'failed') {
-      return 'Call Failed';
+    // If completed
+    if (lead.number_status === 'completed') {
+      return 'Completed';
     }
-
-    // If call currently in progress
-    if (latestEvent?.callStatus === 'in_progress') {
-      return 'Calling';
+    // If not completed (refused required condition)
+    if (lead.number_status === 'failed') {
+      return 'Not Completed';
     }
-
-    // If follow-up is pending or requested
+    // If participated
+    if (lead.participated_status === 'completed') {
+      return 'Participated';
+    }
+    // If follow-up pending
     if (lead.followup_status === 'pending') {
       return 'Follow-up Pending';
     }
-
-    // If reminder is pending
+    // If reminder pending
     if (lead.reminder_status === 'pending') {
       return 'Reminder Pending';
     }
-
-    // If Agent 5 / all agents completed
-    if (lead.email_status === 'completed' && lead.reminder_status === 'completed') {
-      return 'Completed';
+    // If cold call failed (no answer)
+    if (lead.cold_call_status === 'failed') {
+      return 'No Answer';
     }
-
-    // Default to Participated if at least Agent 1 is completed
-    if (lead.agent_status === 'completed' || lead.cold_call_status === 'completed') {
-      return 'Participated';
+    // If agent call failed
+    if (lead.agent_status === 'failed') {
+      return 'Call Failed';
     }
-
     return 'Not Started';
   }
 }

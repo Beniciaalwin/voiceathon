@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase, inMemoryDB } from '../config/db';
 import { snapserveWebhookService } from '../services/snapserveWebhookService';
 import { llmSummaryParser } from '../services/llmSummaryParser';
 import { statusEngine } from '../services/statusEngine';
+import { analyzeCallOutcomeWithLLM } from '../services/llmOutcomeService';
 import { Lead } from '../types';
 
 export class WebhookController {
@@ -64,6 +65,16 @@ export class WebhookController {
         rawPayload
       );
 
+      // 2b. Analyze call outcome using the new LLM outcome analysis service
+      const llmOutcome = await analyzeCallOutcomeWithLLM(
+        normalizedEvent.duration || 0,
+        normalizedEvent.callStatus,
+        normalizedEvent.outcome || '',
+        normalizedEvent.transcript || '',
+        normalizedEvent.summary || '',
+        normalizedEvent.agentId
+      );
+
       // 3. Robust Lead Matching by last 10 digits of phone or email
       let lead: Lead | null = null;
       const phoneDigits = (normalizedEvent.phone || '').replace(/[^0-9]/g, '');
@@ -93,11 +104,11 @@ export class WebhookController {
           email: normalizedEvent.email || `participant_${Date.now()}@example.com`,
           agent_id: normalizedEvent.agentId,
           campaign: 'Voiceathon 2026 Main',
-          agent_status: normalizedEvent.callStatus === 'completed' ? 'completed' : 'failed',
+          agent_status: 'not_started',
           cold_call_status: 'not_started',
           followup_status: 'not_started',
           reminder_status: 'not_started',
-          number_status: normalizedEvent.callStatus === 'completed' ? 'completed' : 'failed',
+          number_status: 'not_started',
           participated_status: 'not_started',
           email_status: 'not_started',
           final_status: 'Not Started',
@@ -128,7 +139,7 @@ export class WebhookController {
       }
 
       // 4. Evaluate new lead status via StatusEngine
-      const updatedLead = statusEngine.evaluateLeadStatus(lead, normalizedEvent);
+      const updatedLead = statusEngine.evaluateLeadStatus(lead, normalizedEvent, llmOutcome);
       updatedLead.last_activity = new Date().toISOString();
       updatedLead.updated_at = new Date().toISOString();
 
@@ -139,10 +150,11 @@ export class WebhookController {
         inMemoryDB.saveLead(updatedLead);
       }
 
-      // 6. Store Call Log (with LLM extracted ticks embedded)
+      // 6. Store Call Log (with LLM outcome and ticks embedded)
       const enrichedPayload = {
         ...rawPayload,
         llm_ticks: llmTicks,
+        llm_outcome: llmOutcome,
       };
 
       const callLogData = {

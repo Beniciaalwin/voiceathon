@@ -31,9 +31,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
     case 'failed':
     case 'Call Failed':
     case 'Invalid Number':
-      icon = '!';
+    case 'Not Completed':
+      icon = '✕';
       colorClasses = 'bg-rose-50 text-rose-600 border-rose-200/80 font-extrabold';
-      tooltipText = 'Failed';
+      tooltipText = 'Failed / Rejected';
       break;
     case 'not_started':
     case 'Not Started':
@@ -86,8 +87,14 @@ export const FinalStatusPill: React.FC<{ status: FinalStatus }> = ({ status }) =
       break;
     case 'Call Failed':
     case 'Invalid Number':
+    case 'Not Interested':
+    case 'Not Completed':
       style = 'bg-rose-50/80 text-rose-700 border-rose-200/60';
       dotColor = 'bg-rose-500';
+      break;
+    case 'No Answer':
+      style = 'bg-amber-50/80 text-amber-800 border-amber-200/60';
+      dotColor = 'bg-amber-500';
       break;
     case 'Not Started':
     default:

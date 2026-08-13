@@ -31,6 +31,7 @@ export default function App() {
   const [isWebhookLogsOpen, setIsWebhookLogsOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isManagerReportOpen, setIsManagerReportOpen] = useState(false);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -40,6 +41,30 @@ export default function App() {
     setTimeout(() => {
       setToastMessage((current) => (current === msg ? null : current));
     }, 4000);
+  };
+
+  const handleReanalyze = async () => {
+    setIsReanalyzing(true);
+    showToast('⏳ Rebuilding statuses from webhooks...');
+    try {
+      const apiBaseUrl =
+        import.meta.env.VITE_API_BASE_URL ||
+        (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+          ? 'http://localhost:4000'
+          : 'https://voiceathon-backend.onrender.com');
+      const res = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/api/reanalyze-all-historical-calls`);
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Rebuild completed successfully!');
+        loadDashboardData();
+      } else {
+        showToast(`❌ Rebuild failed: ${json.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      showToast(`❌ Rebuild failed: ${err.message}`);
+    } finally {
+      setIsReanalyzing(false);
+    }
   };
 
   const loadDashboardData = useCallback(async () => {
@@ -111,6 +136,8 @@ export default function App() {
         onOpenWebhookLogs={() => setIsWebhookLogsOpen(true)}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
         onOpenManagerReport={() => setIsManagerReportOpen(true)}
+        onReanalyze={handleReanalyze}
+        isReanalyzing={isReanalyzing}
         isLive={true}
       />
 
