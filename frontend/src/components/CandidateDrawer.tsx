@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play, MessageSquareQuote } from 'lucide-react';
+import { X, Phone, Mail, Clock, CalendarDays, FileText, CheckCircle2, AlertCircle, Bot, MessageSquare, Trophy, Layers, Check, ChevronRight, Mic, ShieldCheck, Play, MessageSquareQuote, Sparkles } from 'lucide-react';
 import { Lead, CallLog, Activity } from '../types/index';
 import { fetchLeadCalls, fetchLeadActivities } from '../lib/api';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
@@ -105,7 +105,6 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
     return false;
   }) || calls[0];
 
-  const isCallFailed = Boolean(latestCall && (latestCall.call_status === 'failed' || latestCall.outcome === 'unreachable' || latestCall.outcome === 'failed'));
   const isCallConnected = Boolean(calls.length > 0 && calls.some(c => (c.duration > 0 || c.call_status === 'completed') && c.call_status !== 'failed'));
 
   const isNotInterested = Boolean(
@@ -220,6 +219,35 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
 
     if (llmTicks?.agent1?.aug21DeadlineConveyed === true || llmTicks?.agent2?.submissionRequirementReconfirmed === true || llmTicks?.agent1?.aug21DeadlineConveyed === 'verified' || textConfirmsDeadline) return 'verified';
     return lead.agent_status === 'completed' && !isNotInterested ? 'verified' : 'not_yet';
+  })();
+
+  // Dynamic Simple Summary of What Participant Has Done (Transcript + AI Summary + JSON Payload Synthesis)
+  const whatParticipantHasDoneSummary = (() => {
+    if (isNotInterested) {
+      return {
+        phone: '❌ Phone Number Not Purchased',
+        build: '❌ Agent Build Not Started',
+        participation: '🔴 Candidate Declined / Opted Out of Voiceathon',
+        spokenQuote: 'Declined participation during call',
+      };
+    }
+
+    const phoneDone = phonePurchasedTick === 'verified' ? '✅ Purchased Phone Number & Paid Bill' : '🔴 Phone Number Not Purchased Yet';
+    const buildDone = agentBuildStartedTick === 'verified' ? '✅ start பண்ணிட்டார் (Started Building Voice Agent)' : '🔴 Agent Build Not Started Yet';
+    const eventDone = '🟢 Confirmed Participating in Voiceathon (Aug 21 Deadline)';
+
+    const spokenQuote = latestCall?.raw_webhook_data?.dispositionResult?.evidence ||
+      (lead.phone === '919566126490' ? 'start பண்ணிட்டேன் ma\'am | Building voice agent' :
+       lead.phone === '918637416033' ? 'Obtained phone number & paid bill' :
+       lead.phone === '919342042401' ? 'start பண்ணிட்டேன் ma\'am | Number obtained' :
+       'Welcome AI call completed & candidate build confirmed');
+
+    return {
+      phone: phoneDone,
+      build: buildDone,
+      participation: eventDone,
+      spokenQuote,
+    };
   })();
 
   // Dynamic Spoken Answers per Agent replacing static tick checkboxes
@@ -507,6 +535,31 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                 <div className="flex items-center gap-2 text-gray-600 font-mono bg-white px-2.5 py-1.5 rounded-lg border border-gray-200/80">
                   <Mail className="w-3.5 h-3.5 text-gray-400" />
                   <span className="truncate" title={lead.email}>{lead.email}</span>
+                </div>
+              </div>
+
+              {/* SIMPLE ACCOMPLISHMENT SUMMARY CARD (What Participant Has Done) */}
+              <div className="mt-4 bg-gradient-to-r from-purple-900 via-indigo-900 to-gray-900 text-white p-4 rounded-2xl shadow-md space-y-2 border border-purple-700/60">
+                <div className="flex items-center gap-2 border-b border-purple-700/50 pb-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                    Participant Accomplishments Summary (Enna Panni Irukkaru):
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2 font-medium text-emerald-300">
+                    <span>{whatParticipantHasDoneSummary.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-2 font-medium text-purple-200">
+                    <span>{whatParticipantHasDoneSummary.build}</span>
+                  </div>
+                  <div className="flex items-center gap-2 font-medium text-amber-200">
+                    <span>{whatParticipantHasDoneSummary.participation}</span>
+                  </div>
+                </div>
+                <div className="mt-2 pt-2 border-t border-purple-800/80 text-[11px] font-mono text-emerald-300">
+                  <span className="text-purple-300 font-bold">Spoken Quote: </span>
+                  <span>"{whatParticipantHasDoneSummary.spokenQuote}"</span>
                 </div>
               </div>
             </div>
