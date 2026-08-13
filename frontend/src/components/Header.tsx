@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Radio, Terminal, Play, Bot, ChevronDown, User, Trophy } from 'lucide-react';
+import { RefreshCw, Radio, Terminal, Play, Bot, ChevronDown, User, Trophy, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -8,6 +8,7 @@ interface HeaderProps {
   onSelectCampaign: (campaign: string) => void;
   onOpenWebhookLogs: () => void;
   onOpenSimulator: () => void;
+  onOpenManagerReport: () => void;
   isLive: boolean;
 }
 
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectCampaign,
   onOpenWebhookLogs,
   onOpenSimulator,
+  onOpenManagerReport,
   isLive,
 }) => {
   return (
@@ -50,6 +52,16 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Live</span>
           </div>
 
+          {/* Manager Audit Report Button */}
+          <button
+            onClick={onOpenManagerReport}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-300 bg-purple-900 hover:bg-black text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+            title="Open Executive Manager Report"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>Manager Audit Report</span>
+          </button>
+
           {/* Hackathon Track / Campaign Selector */}
           <div className="relative">
             <select
@@ -78,25 +90,20 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Webhook Simulator Trigger */}
           <button
             onClick={onOpenSimulator}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-black text-white text-xs font-medium shadow-sm transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900 text-xs font-semibold transition-all shadow-xs"
           >
-            <Play className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400" />
-            <span>Simulate Call Event</span>
+            <Play className="w-3.5 h-3.5 fill-purple-700 text-purple-700" />
+            <span>Test Call Webhook</span>
           </button>
 
-          {/* Webhook Logs Modal Trigger */}
+          {/* Webhook Developer Audit Logs Trigger */}
           <button
             onClick={onOpenWebhookLogs}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium shadow-subtle transition-all active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition-all shadow-xs"
           >
             <Terminal className="w-3.5 h-3.5 text-gray-500" />
             <span>Webhook Logs</span>
           </button>
-
-          {/* User Profile Menu Mock */}
-          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 border border-gray-300/80 flex items-center justify-center text-gray-700 font-semibold text-xs ml-1 cursor-pointer hover:ring-2 hover:ring-black/10 transition-all">
-            <User className="w-4 h-4" />
-          </div>
         </div>
       </div>
     </header>

@@ -6,6 +6,7 @@ import { LeadTable } from './components/LeadTable';
 import { CandidateDrawer } from './components/CandidateDrawer';
 import { WebhookLogsModal } from './components/WebhookLogsModal';
 import { WebhookSimulatorModal } from './components/WebhookSimulatorModal';
+import { ManagerReportModal } from './components/ManagerReportModal';
 import { Lead, DashboardStats } from './types/index';
 import { fetchLeads, fetchDashboardStats } from './lib/api';
 import { subscribeToRealtimeUpdates } from './lib/supabase';
@@ -28,6 +29,7 @@ export default function App() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isWebhookLogsOpen, setIsWebhookLogsOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [isManagerReportOpen, setIsManagerReportOpen] = useState(false);
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -53,29 +55,25 @@ export default function App() {
       ]);
       setLeads(leadsData);
       setStats(statsData);
+
+      // Automatically keep the selected drawer candidate updated in real-time
+      if (selectedLead) {
+        const fresh = leadsData.find((l) => l.id === selectedLead.id);
+        if (fresh) setSelectedLead(fresh);
+      }
     } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchQuery, statusFilter, agentFilter, campaignFilter, sortBy]);
+  }, [searchQuery, statusFilter, agentFilter, campaignFilter, sortBy, selectedLead?.id]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [loadDashboardData]);
+  }, [searchQuery, statusFilter, agentFilter, campaignFilter, sortBy]);
 
-  // Keep selectedLead in sync with updated leads array
-  useEffect(() => {
-    if (selectedLead) {
-      const updated = leads.find((l) => l.id === selectedLead.id || l.phone === selectedLead.phone);
-      if (updated && (updated.final_status !== selectedLead.final_status || updated.agent_status !== selectedLead.agent_status || updated.updated_at !== selectedLead.updated_at)) {
-        setSelectedLead(updated);
-      }
-    }
-  }, [leads, selectedLead]);
-
-  // 3-Second Automatic Realtime Polling Fallback
+  // Background 3-second polling to ensure 100% 24/7 data sync even if WebSockets reconnect
   useEffect(() => {
     const pollInterval = setInterval(() => {
       loadDashboardData();
@@ -83,21 +81,17 @@ export default function App() {
     return () => clearInterval(pollInterval);
   }, [loadDashboardData]);
 
-  // Subscribe to Supabase Realtime / WebSocket events
+  // Real-time WebSockets subscription via Supabase Postgres Realtime
   useEffect(() => {
-    const unsubscribe = subscribeToRealtimeUpdates((eventData) => {
-      console.log('[Realtime Push Received]', eventData);
+    const unsubscribe = subscribeToRealtimeUpdates((payload) => {
+      console.log('⚡ Realtime Webhook Payload Event:', payload);
+      showToast(`⚡ Realtime Event Received: ${payload.event || 'Database Update'}`);
       loadDashboardData();
-
-      if (eventData.event === 'LEAD_UPDATED' && eventData.payload) {
-        const leadName = eventData.payload.name || 'Participant';
-        showToast(`${leadName}'s call status was updated`);
-      } else if (eventData.event === 'CALL_LOG_ADDED') {
-        showToast(`New Hackathon AI Call logged`);
-      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [loadDashboardData]);
 
   const handleManualRefresh = () => {
@@ -106,8 +100,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFBFD] flex flex-col text-gray-900 font-sans">
-      {/* Top Fixed Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100/50 to-purple-50/20 text-gray-900 flex flex-col font-sans antialiased">
+      {/* Top Header */}
       <Header
         onRefresh={handleManualRefresh}
         isRefreshing={isRefreshing}
@@ -115,6 +109,7 @@ export default function App() {
         onSelectCampaign={setCampaignFilter}
         onOpenWebhookLogs={() => setIsWebhookLogsOpen(true)}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenManagerReport={() => setIsManagerReportOpen(true)}
         isLive={true}
       />
 
@@ -180,6 +175,13 @@ export default function App() {
           showToast(msg);
           loadDashboardData();
         }}
+      />
+
+      {/* Manager Executive Audit Report Modal */}
+      <ManagerReportModal
+        isOpen={isManagerReportOpen}
+        onClose={() => setIsManagerReportOpen(false)}
+        leads={leads}
       />
 
       {/* Toast Notification Banner */}

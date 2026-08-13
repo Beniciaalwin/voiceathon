@@ -108,8 +108,8 @@ export const WebhookLogsModal: React.FC<WebhookLogsModalProps> = ({ isOpen, onCl
                       <span>Call ID: {log.call_id || 'N/A'}</span>
                       <span>{log.phone || 'N/A'}</span>
                     </div>
-                    <div className="mt-1 text-[10px] text-gray-400 text-right">
-                      {new Date(log.received_at).toLocaleTimeString()}
+                    <div className="mt-1 text-[10px] text-gray-400 text-right font-mono">
+                      {new Date(log.received_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </div>
                   </div>
                 );
