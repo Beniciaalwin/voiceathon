@@ -17,9 +17,19 @@ export class LeadController {
           if (search) {
             query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
           }
-          if (status !== 'all') {
+
+          if (status === 'build_not_started') {
+            query = query.or('agent_status.eq.not_yet,agent_status.eq.failed,final_status.eq.Not Started');
+          } else if (status === 'phone_pending') {
+            query = query.or('final_status.eq.Not Started,final_status.eq.Calling,final_status.eq.Follow-up Pending');
+          } else if (status === 'ready') {
+            query = query.or('final_status.eq.Participated,final_status.eq.Completed,agent_status.eq.completed');
+          } else if (status === 'action_needed') {
+            query = query.or('final_status.eq.Follow-up Pending,final_status.eq.Not Started,agent_status.eq.failed');
+          } else if (status !== 'all') {
             query = query.eq('final_status', status);
           }
+
           if (campaign !== 'all') {
             query = query.eq('campaign', campaign);
           }
@@ -61,8 +71,8 @@ export class LeadController {
             res.json({ success: true, lead: data });
             return;
           }
-        } catch (dbErr) {
-          // Fall through to inMemoryDB
+        } catch (dbErr: any) {
+          console.warn('[Supabase LeadById Error] Falling back to inMemoryDB:', dbErr.message);
         }
       }
 
@@ -71,6 +81,7 @@ export class LeadController {
         res.status(404).json({ success: false, error: 'Lead not found' });
         return;
       }
+
       res.json({ success: true, lead });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -87,12 +98,13 @@ export class LeadController {
             .select('*')
             .eq('lead_id', id)
             .order('created_at', { ascending: false });
+
           if (!error && data) {
             res.json({ success: true, calls: data });
             return;
           }
-        } catch (dbErr) {
-          // Fall through
+        } catch (dbErr: any) {
+          console.warn('[Supabase LeadCallLogs Error] Falling back to inMemoryDB:', dbErr.message);
         }
       }
 
@@ -113,12 +125,13 @@ export class LeadController {
             .select('*')
             .eq('lead_id', id)
             .order('created_at', { ascending: false });
+
           if (!error && data) {
             res.json({ success: true, activities: data });
             return;
           }
-        } catch (dbErr) {
-          // Fall through
+        } catch (dbErr: any) {
+          console.warn('[Supabase LeadActivities Error] Falling back to inMemoryDB:', dbErr.message);
         }
       }
 
@@ -132,7 +145,7 @@ export class LeadController {
   public resetSeed = async (req: Request, res: Response): Promise<void> => {
     try {
       inMemoryDB.seedReset();
-      res.json({ success: true, message: 'Database reset to initial hackathon sample seed' });
+      res.json({ success: true, message: 'Database reset to default seed data' });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
