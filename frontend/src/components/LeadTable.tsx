@@ -96,6 +96,15 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               const isSelected = lead.id === selectedLeadId;
               const sequence = getSequenceStage(lead);
 
+              // Use phone number as display name if name is generic
+              const isGenericName = /^Participant\s*\(/i.test(lead.name) || !lead.name || lead.name.trim() === '';
+              const formattedPhone = lead.phone
+                ? `+${lead.phone.slice(0, 2)} ${lead.phone.slice(2, 7)} ${lead.phone.slice(7)}`
+                : '—';
+              const displayName = isGenericName ? formattedPhone : lead.name;
+              const displayAvatar = isGenericName ? '📞' : lead.name.charAt(0).toUpperCase();
+              const displaySub = isGenericName ? `#${lead.phone?.slice(-4) ?? ''}` : lead.phone;
+
               return (
                 <tr
                   key={lead.id}
@@ -104,15 +113,19 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     isSelected ? 'bg-purple-50/50 hover:bg-purple-50' : 'hover:bg-gray-50/80'
                   }`}
                 >
-                  {/* Participant Name */}
+                  {/* Participant Name / Phone */}
                   <td className="py-3.5 px-4 font-semibold text-gray-900 group-hover:text-black transition-colors">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold text-xs flex items-center justify-center">
-                        {lead.name.charAt(0)}
+                      <div className={`w-7 h-7 rounded-full border text-xs flex items-center justify-center font-semibold ${
+                        isGenericName
+                          ? 'bg-blue-50 border-blue-200 text-blue-600'
+                          : 'bg-purple-50 border-purple-200 text-purple-700'
+                      }`}>
+                        {isGenericName ? '📞' : displayAvatar}
                       </div>
                       <div>
-                        <div>{lead.name}</div>
-                        <div className="text-[10px] text-gray-400 font-mono font-normal">{lead.email}</div>
+                        <div className={`${isGenericName ? 'font-mono text-[12px] text-gray-800' : ''}`}>{displayName}</div>
+                        <div className="text-[10px] text-gray-400 font-mono font-normal">{displaySub}</div>
                       </div>
                     </div>
                   </td>
@@ -121,7 +134,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   <td className="py-3.5 px-3 text-gray-600 font-mono text-[11px]">
                     <div className="flex items-center gap-1.5">
                       <Phone className="w-3 h-3 text-gray-400" />
-                      <span>{lead.phone}</span>
+                      <span>{formattedPhone}</span>
                     </div>
                   </td>
 
