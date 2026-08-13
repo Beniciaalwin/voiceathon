@@ -571,7 +571,10 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                   phone_valid: lead.number_status !== 'failed',
                   final_outcome: lead.final_status === 'Not Interested' ? 'not_interested' : (lead.final_status === 'Completed' ? 'completed' : 'participated'),
                   confidence: 0.8,
-                  reason: isNotInterested ? 'Participant declined during call.' : 'Status inferred from verified ticks.'
+                  reason: isNotInterested ? 'Participant declined during call.' : 'Status inferred from verified ticks.',
+                  number_status: lead.number_status === 'completed' ? 'Purchased' : (lead.number_status === 'pending' ? 'Planning to Purchase' : 'Unclear'),
+                  number_reason: 'Status inferred from verified ticks.',
+                  needs_review: lead.final_status === 'Unclear'
                 };
 
                 return (
@@ -590,20 +593,48 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <span className="text-purple-300 font-bold block mb-1">AI Outcome:</span>
-                        <span className="text-white font-bold text-sm bg-purple-900/50 border border-purple-800 px-2.5 py-1 rounded-lg inline-block">
-                          {lead.final_status}
-                        </span>
+                    <div className="grid grid-cols-2 gap-3 text-[11px] leading-tight">
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Voiceathon Status:</span>
+                        <span className="text-white font-bold capitalize">{lead.final_status}</span>
                       </div>
-                      <div>
-                        <span className="text-purple-300 font-bold block mb-1">Reason:</span>
-                        <span className="text-gray-200 block text-[11px] leading-relaxed">
-                          {latestCallOutcome.reason || 'No reasoning available.'}
-                        </span>
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Interest Status:</span>
+                        <span className="text-white font-bold capitalize">{latestCallOutcome.interest || 'Unknown'}</span>
+                      </div>
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Participation Status:</span>
+                        <span className="text-white font-bold">{latestCallOutcome.participated ? 'Confirmed ✓' : 'Not Confirmed'}</span>
+                      </div>
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Follow-up Status:</span>
+                        <span className="text-white font-bold">{latestCallOutcome.follow_up_required ? 'Required ◷' : 'Not Required'}</span>
+                      </div>
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Reminder Status:</span>
+                        <span className="text-white font-bold">{latestCallOutcome.reminder_required ? 'Required ◷' : 'Not Required'}</span>
+                      </div>
+                      <div className="bg-purple-900/30 p-2 rounded-lg border border-purple-800/60">
+                        <span className="text-purple-300 font-bold block mb-0.5">Phone Number Status:</span>
+                        <span className="text-white font-bold">{latestCallOutcome.number_status || 'Unclear'}</span>
                       </div>
                     </div>
+
+                    <div className="pt-2 border-t border-purple-900/60 text-xs">
+                      <span className="text-purple-300 font-bold block mb-1">AI Summary & Reason:</span>
+                      <p className="text-gray-200 text-[11px] leading-relaxed">
+                        {latestCallOutcome.reason || 'No reasoning available.'}
+                      </p>
+                    </div>
+
+                    {latestCallOutcome.number_reason && (
+                      <div className="pt-2 border-t border-purple-900/60 text-xs">
+                        <span className="text-purple-300 font-bold block mb-1">Phone Number Status Reason:</span>
+                        <p className="text-gray-200 text-[11px] leading-relaxed">
+                          {latestCallOutcome.number_reason}
+                        </p>
+                      </div>
+                    )}
 
                     {latestCall?.summary && (
                       <div className="pt-2 border-t border-purple-900/60">

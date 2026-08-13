@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trophy, ShieldCheck, Download, CheckCircle2, AlertCircle, Phone, Mail, FileText, Send, Sparkles, UserCheck, Layers, MessageSquareQuote, Check } from 'lucide-react';
+import {
+  X, Trophy, ShieldCheck, Download, CheckCircle2, AlertCircle, HelpCircle,
+  FileText, Send, Sparkles, MessageSquareQuote, Check, AlertTriangle, PhoneOff
+} from 'lucide-react';
 import { Lead } from '../types/index';
 
 interface ManagerReportModalProps {
@@ -16,36 +19,54 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
 }) => {
   const [submitted, setSubmitted] = useState(false);
   const [managerNotes, setManagerNotes] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'outcomes' | 'numbers'>('outcomes');
 
   if (!isOpen) return null;
 
-  // Calculate readiness stats
+  // 1. Calculate general readiness stats dynamically
   const totalParticipants = leads.length;
-  const readyParticipants = leads.filter(l => l.agent_status === 'completed' || l.final_status === 'Participated' || l.final_status === 'Completed').length;
-  const inProgressParticipants = leads.filter(l => l.final_status === 'Calling' || l.final_status === 'Follow-up Pending').length;
-  const actionRequiredParticipants = leads.filter(l => l.final_status === 'Not Interested' || l.agent_status === 'failed').length;
+  const callsCompleted = leads.filter(l => l.agent_status !== 'not_started').length;
+  const reachedParticipants = leads.filter(l => l.cold_call_status === 'completed').length;
+  const interestedCount = leads.filter(l => l.llm_analysis?.interest === 'interested' || l.final_status === 'Participated' || l.final_status === 'Completed').length;
+  const confirmedCount = leads.filter(l => l.llm_analysis?.participation === 'Confirmed' || l.final_status === 'Completed').length;
+  
+  const followupPendingCount = leads.filter(l => l.final_status === 'Follow-up Pending').length;
+  const reminderPendingCount = leads.filter(l => l.final_status === 'Reminder Pending').length;
+  const notInterestedCount = leads.filter(l => l.final_status === 'Not Interested').length;
+  const noAnswerCount = leads.filter(l => l.final_status === 'No Answer').length;
+  const callFailedCount = leads.filter(l => l.final_status === 'Call Failed').length;
+  const unclearCount = leads.filter(l => l.final_status === 'Unclear').length;
+
+  // 2. Calculate phone number purchase stats dynamically
+  const numPurchased = leads.filter(l => l.llm_analysis?.number_status === 'Purchased').length;
+  const alreadyHaveNum = leads.filter(l => l.llm_analysis?.number_status === 'Already Has It').length;
+  const planningToPurchase = leads.filter(l => l.llm_analysis?.number_status === 'Planning to Purchase').length;
+  const numNotPurchased = leads.filter(l => l.llm_analysis?.number_status === 'Not Purchased').length;
+  const numNotRequired = leads.filter(l => l.llm_analysis?.number_status === 'Not Required').length;
+  const numUnclear = leads.filter(l => l.llm_analysis?.number_status === 'Unclear' || !l.llm_analysis?.number_status).length;
 
   const handleDownloadReport = () => {
     // Generate CSV data for manager export
-    const headers = ['Participant Name', 'Phone', 'Email', 'Readiness Status', 'Day 1 Welcome', 'Day 3 Tech Check', 'Day 5 Confirmation', 'Day 7 Reminder', 'Day 8 Feedback', 'Manager Sign-off Notes'];
+    const headers = [
+      'Participant Name', 'Phone', 'Email', 'Voiceathon Status', 
+      'Interest', 'Required Number Status', 'AI Status Reason', 'Phone Purchase Reason'
+    ];
     const rows = leads.map(l => [
       `"${l.name}"`,
       `"${l.phone}"`,
       `"${l.email || ''}"`,
       `"${l.final_status}"`,
-      `"${l.agent_status}"`,
-      `"${l.cold_call_status}"`,
-      `"${l.followup_status}"`,
-      `"${l.reminder_status}"`,
-      `"${l.email_status}"`,
-      `"${managerNotes[l.id] || 'Approved for Voiceathon'}"`,
+      `"${l.llm_analysis?.interest || 'Unknown'}"`,
+      `"${l.llm_analysis?.number_status || 'Unclear'}"`,
+      `"${(l.llm_analysis?.reason || '').replace(/"/g, "'")}"`,
+      `"${(l.llm_analysis?.number_reason || '').replace(/"/g, "'")}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Voiceathon_2026_Manager_Readiness_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `Voiceathon_2026_Executive_Manager_Report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -66,10 +87,10 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white border border-gray-200 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+          className="bg-white border border-gray-200 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
         >
           {/* Modal Header */}
-          <div className="p-6 bg-gradient-to-r from-purple-900 via-indigo-900 to-gray-900 text-white flex items-center justify-between border-b border-purple-800/60">
+          <div className="p-6 bg-gradient-to-r from-purple-905 via-indigo-950 to-gray-950 text-white flex items-center justify-between border-b border-purple-800/60">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Trophy className="w-6 h-6" />
@@ -77,14 +98,14 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-white tracking-tight">
-                    Voiceathon 2026 Manager Executive Audit Report
+                    Voiceathon 2026 Manager Executive Report
                   </h2>
                   <span className="bg-emerald-500/20 text-emerald-300 font-mono text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 uppercase font-bold">
-                    Official Sign-Off
+                    Official Sign-Off Ready
                   </span>
                 </div>
                 <p className="text-xs text-purple-200 mt-0.5">
-                  Realtime AI Call Readiness Verification & Manager Submission Portal
+                  100% Webhook Logs & Transcript Derived Participant Intelligence
                 </p>
               </div>
             </div>
@@ -96,47 +117,126 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
             </button>
           </div>
 
-          {/* Stats Bar */}
-          <div className="grid grid-cols-4 gap-3 p-4 bg-gray-50 border-b border-gray-200/80 text-xs">
-            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
-              <span className="text-gray-400 font-medium block text-[10px] uppercase tracking-wider">Total Monitored</span>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{totalParticipants} Participants</p>
-            </div>
-            <div className="bg-emerald-50/80 p-3 rounded-xl border border-emerald-200/80 shadow-xs">
-              <span className="text-emerald-700 font-bold block text-[10px] uppercase tracking-wider">🟢 Fully Ready</span>
-              <p className="text-lg font-bold text-emerald-900 mt-0.5">{readyParticipants} Confirmed</p>
-            </div>
-            <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200/80 shadow-xs">
-              <span className="text-amber-700 font-bold block text-[10px] uppercase tracking-wider">🟡 In Progress</span>
-              <p className="text-lg font-bold text-amber-900 mt-0.5">{inProgressParticipants} Active Calls</p>
-            </div>
-            <div className="bg-rose-50/80 p-3 rounded-xl border border-rose-200/80 shadow-xs">
-              <span className="text-rose-700 font-bold block text-[10px] uppercase tracking-wider">🔴 Action Needed</span>
-              <p className="text-lg font-bold text-rose-900 mt-0.5">{actionRequiredParticipants} Attention Required</p>
-            </div>
+          {/* Tab Selector */}
+          <div className="flex border-b border-gray-200 bg-gray-50/50 px-6">
+            <button
+              onClick={() => setActiveTab('outcomes')}
+              className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${
+                activeTab === 'outcomes'
+                  ? 'border-purple-600 text-purple-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              📊 Executive Call Outcomes
+            </button>
+            <button
+              onClick={() => setActiveTab('numbers')}
+              className={`py-3 px-4 text-xs font-bold border-b-2 transition-all ${
+                activeTab === 'numbers'
+                  ? 'border-purple-600 text-purple-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              📞 Required Phone Number Status
+            </button>
           </div>
 
-          {/* Modal Body - Participants Audit List */}
+          {/* Dynamic Stats Section */}
+          <div className="p-5 bg-gray-50/70 border-b border-gray-200/80">
+            {activeTab === 'outcomes' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 text-xs">
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Total</span>
+                  <p className="text-base font-bold text-gray-900 mt-0.5">{totalParticipants}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Completed Calls</span>
+                  <p className="text-base font-bold text-gray-900 mt-0.5">{callsCompleted}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Reached</span>
+                  <p className="text-base font-bold text-gray-900 mt-0.5">{reachedParticipants}</p>
+                </div>
+                <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 shadow-xs">
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Confirmed</span>
+                  <p className="text-base font-bold text-emerald-900 mt-0.5">{confirmedCount}</p>
+                </div>
+                <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200/80 shadow-xs">
+                  <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Follow-up</span>
+                  <p className="text-base font-bold text-amber-900 mt-0.5">{followupPendingCount}</p>
+                </div>
+                <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200/80 shadow-xs">
+                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Declined</span>
+                  <p className="text-base font-bold text-rose-900 mt-0.5">{notInterestedCount}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 text-xs">
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                  <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Total</span>
+                  <p className="text-base font-bold text-gray-900 mt-0.5">{totalParticipants}</p>
+                </div>
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/60 shadow-xs">
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Purchased</span>
+                  <p className="text-base font-bold text-emerald-900 mt-0.5">{numPurchased}</p>
+                </div>
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200/60 shadow-xs">
+                  <span className="text-emerald-700 font-bold block text-[9px] uppercase tracking-wider">Already Has</span>
+                  <p className="text-base font-bold text-emerald-900 mt-0.5">{alreadyHaveNum}</p>
+                </div>
+                <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/60 shadow-xs">
+                  <span className="text-amber-700 font-bold block text-[9px] uppercase tracking-wider">Planning</span>
+                  <p className="text-base font-bold text-amber-900 mt-0.5">{planningToPurchase}</p>
+                </div>
+                <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-200/60 shadow-xs">
+                  <span className="text-rose-700 font-bold block text-[9px] uppercase tracking-wider">Not Purchased</span>
+                  <p className="text-base font-bold text-rose-900 mt-0.5">{numNotPurchased}</p>
+                </div>
+                <div className="bg-gray-100 p-3 rounded-xl border border-gray-200 shadow-xs">
+                  <span className="text-gray-500 font-bold block text-[9px] uppercase tracking-wider">Not Required</span>
+                  <p className="text-base font-bold text-gray-700 mt-0.5">{numNotRequired}</p>
+                </div>
+                <div className="bg-orange-50/60 p-3 rounded-xl border border-orange-200/60 shadow-xs">
+                  <span className="text-orange-700 font-bold block text-[9px] uppercase tracking-wider">Unclear / Review</span>
+                  <p className="text-base font-bold text-orange-900 mt-0.5">{numUnclear}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Body - Dynamic Executive Participant List */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {leads.map((lead) => {
-              const isReady = lead.agent_status === 'completed' || lead.final_status === 'Participated' || lead.final_status === 'Completed';
-
-              const spokenEvidence = 'Welcome AI call completed & candidate build evaluated';
+              const analysis = lead.llm_analysis;
+              const isConfirmed = lead.final_status === 'Completed' || lead.final_status === 'Participated';
+              const isDeclined = lead.final_status === 'Not Interested';
+              const isFollowUp = lead.final_status === 'Follow-up Pending';
+              const isUnclear = lead.final_status === 'Unclear' || analysis?.needs_review === true;
 
               return (
                 <div
                   key={lead.id}
                   className={`p-5 rounded-2xl border transition-all ${
-                    isReady ? 'bg-gradient-to-br from-emerald-50/40 via-white to-gray-50 border-emerald-200' : 'bg-white border-gray-200'
+                    isConfirmed 
+                      ? 'bg-gradient-to-br from-emerald-50/30 via-white to-gray-50 border-emerald-200' 
+                      : isDeclined 
+                      ? 'bg-gradient-to-br from-rose-50/20 via-white to-gray-50 border-rose-100'
+                      : isUnclear
+                      ? 'bg-gradient-to-br from-orange-50/20 via-white to-gray-50 border-orange-200 animate-pulse'
+                      : 'bg-white border-gray-200'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl font-bold text-white flex items-center justify-center ${isReady ? 'bg-emerald-600' : 'bg-purple-900'}`}>
+                      <div className={`w-10 h-10 rounded-xl font-bold text-white flex items-center justify-center ${
+                        isConfirmed ? 'bg-emerald-600' : isDeclined ? 'bg-rose-500' : isUnclear ? 'bg-orange-500' : 'bg-purple-900'
+                      }`}>
                         {lead.name.charAt(0)}
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900 leading-tight">{lead.name}</h3>
+                        <h3 className="text-sm font-bold text-gray-900 leading-tight">
+                          {lead.name}
+                        </h3>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 font-mono">
                           <span>{lead.phone}</span>
                           <span>•</span>
@@ -144,39 +244,69 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
                         </div>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      isReady ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'
-                    }`}>
-                      {isReady ? '🟢 100% Fully Ready for Voiceathon' : '🟡 In Progress / AI Monitor Active'}
-                    </span>
-                  </div>
 
-                  {/* 4 Voiceathon Readiness Criteria Badges */}
-                  <div className="grid grid-cols-4 gap-2 mt-4 text-xs">
-                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center gap-1.5 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Phone Number Purchased</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center gap-1.5 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Agent Build Started</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center gap-1.5 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Voiceathon Participation</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center gap-1.5 font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Aug 21 Deadline Conveyed</span>
+                    <div className="flex items-center gap-2">
+                      {isUnclear && (
+                        <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-300 text-[10px] font-extrabold uppercase animate-pulse">
+                          ⚠️ Needs Review
+                        </span>
+                      )}
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                        isConfirmed 
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                          : isDeclined 
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : isFollowUp
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-gray-100 text-gray-800 border-gray-300'
+                      }`}>
+                        Voiceathon Status: {lead.final_status}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Verbatim Tamil & English Spoken Proof Quote */}
-                  <div className="mt-3 bg-purple-50/70 p-3 rounded-xl border border-purple-100 text-xs font-mono text-purple-950 flex items-start gap-2">
-                    <MessageSquareQuote className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  {/* Dynamic Status Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 bg-gray-50/50 p-3.5 rounded-xl border border-gray-100 text-xs">
                     <div>
-                      <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider block">Verbatim Spoken Proof (AI Call Audit):</span>
-                      <span className="font-bold text-purple-900">"{spokenEvidence}"</span>
+                      <span className="text-gray-400 font-semibold block">Interest Level:</span>
+                      <span className="font-bold text-gray-900 mt-0.5 inline-block capitalize">
+                        {analysis?.interest || 'Unknown'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 font-semibold block">Required Number:</span>
+                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
+                        {analysis?.number_status || 'Unclear'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 font-semibold block">Follow-up:</span>
+                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
+                        {analysis?.follow_up_required ? 'Required ◷' : 'Not Required'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 font-semibold block">Participation:</span>
+                      <span className="font-bold text-gray-900 mt-0.5 inline-block">
+                        {analysis?.participated ? 'Confirmed ✓' : 'Not Confirmed'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Verbatim AI Explanation Quote */}
+                  <div className="mt-3 bg-purple-50/60 p-3 rounded-xl border border-purple-100/60 text-xs font-mono text-purple-950 flex items-start gap-2">
+                    <MessageSquareQuote className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div>
+                        <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider block">AI Conversation Evidence:</span>
+                        <span className="font-semibold text-purple-900">"{analysis?.reason || 'No call transcripts parsed yet. Re-run webhook analysis to inspect.'}"</span>
+                      </div>
+                      {analysis?.number_reason && (
+                        <div className="pt-1.5 border-t border-purple-100/60">
+                          <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider block">Phone Purchase Evidence:</span>
+                          <span className="font-semibold text-purple-900">"{analysis.number_reason}"</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -185,7 +315,7 @@ export const ManagerReportModal: React.FC<ManagerReportModalProps> = ({
                     <span className="text-xs font-semibold text-gray-700 shrink-0">Manager Sign-off Note:</span>
                     <input
                       type="text"
-                      placeholder="e.g. Approved for Voiceathon final event"
+                      placeholder="e.g. Confirmed attendance and Twilio phone number purchased."
                       value={managerNotes[lead.id] || ''}
                       onChange={(e) => setManagerNotes({ ...managerNotes, [lead.id]: e.target.value })}
                       className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-600"

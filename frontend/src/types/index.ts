@@ -12,7 +12,8 @@ export type FinalStatus =
   | 'Invalid Number'
   | 'Not Interested'
   | 'No Answer'
-  | 'Not Completed';
+  | 'Not Completed'
+  | 'Unclear';
 
 export interface Lead {
   id: string;
@@ -35,6 +36,7 @@ export interface Lead {
   last_activity: string;
   created_at: string;
   updated_at: string;
+  llm_analysis?: any;
 }
 
 export interface CallLog {

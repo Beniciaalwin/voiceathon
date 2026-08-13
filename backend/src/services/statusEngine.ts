@@ -75,8 +75,21 @@ export class StatusEngine {
         updatedLead.email_status = 'completed';
       }
 
-      // Calculate final status
-      updatedLead.final_status = this.calculateFinalStatusFromState(updatedLead);
+      // Calculate final status from LLM outcome directly
+      const outcomeMap: Record<string, FinalStatus> = {
+        no_answer: 'No Answer',
+        not_interested: 'Not Interested',
+        follow_up_pending: 'Follow-up Pending',
+        reminder_pending: 'Reminder Pending',
+        participated: 'Participated',
+        completed: 'Completed',
+        not_completed: 'Not Completed',
+        call_failed: 'Call Failed',
+        invalid_number: 'Invalid Number',
+        unclear: 'Unclear',
+        not_started: 'Not Started',
+      };
+      updatedLead.final_status = outcomeMap[outcomeResult.final_outcome] || 'Not Started';
     } else {
       // Fallback to legacy parser logic if no outcomeResult provided
       const outcome = (event.outcome || '').toLowerCase();

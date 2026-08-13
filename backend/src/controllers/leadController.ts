@@ -106,7 +106,32 @@ export class LeadController {
 
           const { data, error } = await query;
           if (error) throw error;
-          res.json({ success: true, leads: data || [] });
+
+          const leadsList = data || [];
+          if (leadsList.length > 0) {
+            const leadIds = leadsList.map(l => l.id);
+            const { data: latestLogs } = await supabase
+              .from('call_logs')
+              .select('lead_id, raw_webhook_data')
+              .in('lead_id', leadIds)
+              .order('created_at', { ascending: false });
+
+            // Attach latest outcome to lead objects
+            const logMap: Record<string, any> = {};
+            if (latestLogs) {
+              for (const log of latestLogs) {
+                if (!logMap[log.lead_id]) {
+                  logMap[log.lead_id] = log.raw_webhook_data?.llm_outcome;
+                }
+              }
+            }
+
+            for (const lead of leadsList) {
+              lead.llm_analysis = logMap[lead.id] || null;
+            }
+          }
+
+          res.json({ success: true, leads: leadsList });
           return;
         } catch (dbErr: any) {
           console.warn('[Supabase Leads Query Error] Falling back to inMemoryDB:', dbErr.message);
@@ -114,6 +139,10 @@ export class LeadController {
       }
 
       const leads = inMemoryDB.getLeads({ search, status, campaign, agent, sortBy });
+      for (const lead of leads) {
+        const logs = inMemoryDB.getCallLogsByLeadId(lead.id);
+        lead.llm_analysis = logs[0]?.raw_webhook_data?.llm_outcome || null;
+      }
       res.json({ success: true, leads });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -127,6 +156,14 @@ export class LeadController {
         try {
           const { data, error } = await supabase.from('leads').select('*').eq('id', id).single();
           if (!error && data) {
+            const { data: latestLogs } = await supabase
+              .from('call_logs')
+              .select('raw_webhook_data')
+              .eq('lead_id', id)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            data.llm_analysis = latestLogs?.[0]?.raw_webhook_data?.llm_outcome || null;
             res.json({ success: true, lead: data });
             return;
           }
@@ -141,6 +178,8 @@ export class LeadController {
         return;
       }
 
+      const logs = inMemoryDB.getCallLogsByLeadId(lead.id);
+      lead.llm_analysis = logs[0]?.raw_webhook_data?.llm_outcome || null;
       res.json({ success: true, lead });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

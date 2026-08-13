@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lead } from '../types/index';
 import { StatusBadge, FinalStatusPill } from './StatusBadge';
-import { Clock, Phone, Mail, UserCheck, CalendarDays } from 'lucide-react';
+import { Phone, Mail, UserCheck } from 'lucide-react';
 
 interface LeadTableProps {
   leads: Lead[];
@@ -16,39 +16,6 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   onSelectLead,
   selectedLeadId,
 }) => {
-  const formatTimeAgo = (dateStr: string) => {
-    if (!dateStr) return '—';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
-  };
-
-  const getSequenceStage = (lead: Lead) => {
-    if (lead.final_status === 'Completed' || lead.participated_status === 'completed') {
-      return { step: '5/5', label: 'Day 8: Agent 5 (Feedback)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    }
-    if (lead.reminder_status === 'completed' || lead.reminder_status === 'pending') {
-      return { step: '4/5', label: 'Day 7: Agent 4 (Reminder)', color: 'bg-amber-50 text-amber-700 border-amber-200' };
-    }
-    if (lead.followup_status === 'completed' || lead.followup_status === 'pending') {
-      return { step: '3/5', label: 'Day 5: Agent 3 (Confirmation)', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-    }
-    if (lead.cold_call_status === 'completed') {
-      return { step: '2/5', label: 'Day 3: Agent 2 (Tech Check)', color: 'bg-purple-50 text-purple-700 border-purple-200' };
-    }
-    if (lead.agent_status === 'completed') {
-      return { step: '1/5', label: 'Day 1: Agent 1 (Registration)', color: 'bg-blue-50 text-blue-700 border-blue-200' };
-    }
-    return { step: '0/5', label: 'Day 0: Pending Agent 1', color: 'bg-gray-50 text-gray-500 border-gray-200' };
-  };
-
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-gray-200/80 shadow-subtle p-6 space-y-4">
@@ -67,7 +34,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         </div>
         <h3 className="text-sm font-semibold text-gray-900">No participants found</h3>
         <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-          No participant records match your active search filter or multi-day sequence track.
+          No participant records match your active search filter or webhook database ticks.
         </p>
       </div>
     );
@@ -75,35 +42,34 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200/80 shadow-subtle overflow-hidden transition-all">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1050px]">
+      <div className="overflow-x-auto font-sans">
+        <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
-            <tr className="bg-gray-50/70 border-b border-gray-200/70 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              <th className="py-3 px-4">Participant Name</th>
+            <tr className="bg-gray-50/70 border-b border-gray-200/70 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+              <th className="py-3 px-4">Name</th>
               <th className="py-3 px-3">Phone</th>
-              <th className="py-3 px-3">Multi-Day Journey</th>
-              <th className="py-3 px-2 text-center" title="Day 1: Agent 1">A1 (D1)</th>
-              <th className="py-3 px-2 text-center" title="Day 3: Agent 2">A2 (D3)</th>
-              <th className="py-3 px-2 text-center" title="Day 5: Agent 3">A3 (D5)</th>
-              <th className="py-3 px-2 text-center" title="Day 7: Agent 4">A4 (D7)</th>
-              <th className="py-3 px-2 text-center" title="Day 8: Agent 5">A5 (D8)</th>
-              <th className="py-3 px-4">Final Status</th>
-              <th className="py-3 px-4 text-right">Last Activity</th>
+              <th className="py-3 px-3">Email</th>
+              <th className="py-3 px-2 text-center" title="Day 1: Agent Welcome Call">Agent</th>
+              <th className="py-3 px-2 text-center" title="Day 3: Cold Call Screening">Cold Call</th>
+              <th className="py-3 px-2 text-center" title="Day 5: Follow-up Callback">Follow-up</th>
+              <th className="py-3 px-2 text-center" title="Day 7: Deadline Reminder">Reminder</th>
+              <th className="py-3 px-2 text-center" title="Required Item / Phone Number status">Number</th>
+              <th className="py-3 px-2 text-center" title="Participation confirmed status">Participated</th>
+              <th className="py-3 px-2 text-center" title="Day 8: Confirmation Email">Email</th>
+              <th className="py-3 px-4">Voiceathon Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-xs">
             {leads.map((lead) => {
               const isSelected = lead.id === selectedLeadId;
-              const sequence = getSequenceStage(lead);
 
-              // Use phone number as display name if name is generic
+              // Check if name is generic (Participant (XXX))
               const isGenericName = /^Participant\s*\(/i.test(lead.name) || !lead.name || lead.name.trim() === '';
               const formattedPhone = lead.phone
-                ? `+${lead.phone.slice(0, 2)} ${lead.phone.slice(2, 7)} ${lead.phone.slice(7)}`
+                ? `+${lead.phone.replace(/\D/g, '')}`
                 : '—';
               const displayName = isGenericName ? formattedPhone : lead.name;
               const displayAvatar = isGenericName ? '📞' : lead.name.charAt(0).toUpperCase();
-              const displaySub = isGenericName ? `#${lead.phone?.slice(-4) ?? ''}` : lead.phone;
 
               return (
                 <tr
@@ -113,67 +79,76 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                     isSelected ? 'bg-purple-50/50 hover:bg-purple-50' : 'hover:bg-gray-50/80'
                   }`}
                 >
-                  {/* Participant Name / Phone */}
+                  {/* Name */}
                   <td className="py-3.5 px-4 font-semibold text-gray-900 group-hover:text-black transition-colors">
                     <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-full border text-xs flex items-center justify-center font-semibold ${
+                      <div className={`w-7 h-7 rounded-full border text-[11px] flex items-center justify-center font-bold shrink-0 ${
                         isGenericName
                           ? 'bg-blue-50 border-blue-200 text-blue-600'
                           : 'bg-purple-50 border-purple-200 text-purple-700'
                       }`}>
-                        {isGenericName ? '📞' : displayAvatar}
+                        {displayAvatar}
                       </div>
-                      <div>
-                        <div className={`${isGenericName ? 'font-mono text-[12px] text-gray-800' : ''}`}>{displayName}</div>
-                        <div className="text-[10px] text-gray-400 font-mono font-normal">{displaySub}</div>
-                      </div>
+                      <span className="truncate max-w-[140px] block" title={displayName}>
+                        {displayName}
+                      </span>
                     </div>
                   </td>
 
                   {/* Phone */}
-                  <td className="py-3.5 px-3 text-gray-600 font-mono text-[11px]">
+                  <td className="py-3.5 px-3 text-gray-600 font-mono text-[11px] truncate max-w-[120px]">
                     <div className="flex items-center gap-1.5">
-                      <Phone className="w-3 h-3 text-gray-400" />
+                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />
                       <span>{formattedPhone}</span>
                     </div>
                   </td>
 
-                  {/* Multi-Day Journey Pill */}
-                  <td className="py-3.5 px-3">
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${sequence.color}`}>
-                      <CalendarDays className="w-3 h-3" />
-                      <span>{sequence.label}</span>
+                  {/* Email */}
+                  <td className="py-3.5 px-3 text-gray-600 font-mono text-[11px] truncate max-w-[140px]" title={lead.email}>
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span>{lead.email || '—'}</span>
                     </div>
                   </td>
 
-                  {/* 5 Multi-Day Agent Sequence Grid */}
-                  <td className="py-3.5 px-2 text-center" title="Day 1: Agent 1 (Registration)">
+                  {/* Agent */}
+                  <td className="py-3.5 px-2 text-center">
                     <StatusBadge status={lead.agent_status} size="sm" />
                   </td>
-                  <td className="py-3.5 px-2 text-center" title="Day 3: Agent 2 (Tech Screening)">
+
+                  {/* Cold Call */}
+                  <td className="py-3.5 px-2 text-center">
                     <StatusBadge status={lead.cold_call_status} size="sm" />
                   </td>
-                  <td className="py-3.5 px-2 text-center" title="Day 5: Agent 3 (Confirmation)">
+
+                  {/* Follow-up */}
+                  <td className="py-3.5 px-2 text-center">
                     <StatusBadge status={lead.followup_status} size="sm" />
                   </td>
-                  <td className="py-3.5 px-2 text-center" title="Day 7: Agent 4 (Reminder)">
+
+                  {/* Reminder */}
+                  <td className="py-3.5 px-2 text-center">
                     <StatusBadge status={lead.reminder_status} size="sm" />
                   </td>
-                  <td className="py-3.5 px-2 text-center" title="Day 8: Agent 5 (Feedback)">
+
+                  {/* Number */}
+                  <td className="py-3.5 px-2 text-center">
+                    <StatusBadge status={lead.number_status} size="sm" />
+                  </td>
+
+                  {/* Participated */}
+                  <td className="py-3.5 px-2 text-center">
+                    <StatusBadge status={lead.participated_status} size="sm" />
+                  </td>
+
+                  {/* Email */}
+                  <td className="py-3.5 px-2 text-center">
                     <StatusBadge status={lead.email_status} size="sm" />
                   </td>
 
-                  {/* Final Status */}
-                  <td className="py-3.5 px-4">
+                  {/* Voiceathon Status */}
+                  <td className="py-3.5 px-4 shrink-0">
                     <FinalStatusPill status={lead.final_status} />
-                  </td>
-
-                  {/* Last Activity */}
-                  <td className="py-3.5 px-4 text-right text-gray-500 font-mono text-[11px]">
-                    <div className="inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-gray-400" />
-                      <span>{formatTimeAgo(lead.last_activity)}</span>
-                    </div>
                   </td>
                 </tr>
               );

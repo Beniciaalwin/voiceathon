@@ -3,7 +3,7 @@ import { isSupabaseConfigured, supabase, inMemoryDB } from '../config/db';
 import { snapserveWebhookService } from '../services/snapserveWebhookService';
 import { llmSummaryParser } from '../services/llmSummaryParser';
 import { statusEngine } from '../services/statusEngine';
-import { analyzeCallOutcomeWithLLM } from '../services/llmOutcomeService';
+import { analyzeCallOutcomeWithLLM, analyzeUnifiedParticipantOutcomeWithLLM } from '../services/llmOutcomeService';
 import { Lead } from '../types';
 
 export class WebhookController {
@@ -57,25 +57,7 @@ export class WebhookController {
     }
 
     try {
-      // 2. Parse Summary into Verified LLM Sub-Checklist Ticks (Groq LLM / Fallback)
-      const llmTicks = await llmSummaryParser.parseSummaryToTicks(
-        normalizedEvent.summary,
-        normalizedEvent.transcript,
-        normalizedEvent.agentId,
-        rawPayload
-      );
-
-      // 2b. Analyze call outcome using the new LLM outcome analysis service
-      const llmOutcome = await analyzeCallOutcomeWithLLM(
-        normalizedEvent.duration || 0,
-        normalizedEvent.callStatus,
-        normalizedEvent.outcome || '',
-        normalizedEvent.transcript || '',
-        normalizedEvent.summary || '',
-        normalizedEvent.agentId
-      );
-
-      // 3. Robust Lead Matching by last 10 digits of phone or email
+      // 2. Robust Lead Matching by last 10 digits of phone or email
       let lead: Lead | null = null;
       const phoneDigits = (normalizedEvent.phone || '').replace(/[^0-9]/g, '');
       const last10Digits = phoneDigits.slice(-10);
@@ -138,25 +120,8 @@ export class WebhookController {
         }
       }
 
-      // 4. Evaluate new lead status via StatusEngine
-      const updatedLead = statusEngine.evaluateLeadStatus(lead, normalizedEvent, llmOutcome);
-      updatedLead.last_activity = new Date().toISOString();
-      updatedLead.updated_at = new Date().toISOString();
-
-      // 5. Save updated lead
-      if (isSupabaseConfigured && supabase) {
-        await supabase.from('leads').update(updatedLead).eq('id', lead.id);
-      } else {
-        inMemoryDB.saveLead(updatedLead);
-      }
-
-      // 6. Store Call Log (with LLM outcome and ticks embedded)
-      const enrichedPayload = {
-        ...rawPayload,
-        llm_ticks: llmTicks,
-        llm_outcome: llmOutcome,
-      };
-
+      // 3. Save new call log to database first (so it's included in history)
+      const mockCallLogId = 'call_log_' + Date.now();
       const callLogData = {
         lead_id: lead.id,
         call_id: normalizedEvent.callId,
@@ -169,13 +134,63 @@ export class WebhookController {
         summary: normalizedEvent.summary || '',
         callback_required: normalizedEvent.callbackRequired || false,
         callback_time: normalizedEvent.callbackTime || null,
-        raw_webhook_data: enrichedPayload,
+        raw_webhook_data: {
+          ...rawPayload,
+        },
       };
 
       if (isSupabaseConfigured && supabase) {
         await supabase.from('call_logs').insert(callLogData);
       } else {
-        inMemoryDB.addCallLog(callLogData as any);
+        inMemoryDB.addCallLog({
+          ...callLogData,
+          id: mockCallLogId,
+        } as any);
+      }
+
+      // 4. Fetch all call logs for this lead in chronological order (ascending)
+      let allCalls: any[] = [];
+      if (isSupabaseConfigured && supabase) {
+        const { data } = await supabase
+          .from('call_logs')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .order('created_at', { ascending: true });
+        allCalls = data || [];
+      } else {
+        allCalls = [...inMemoryDB.getCallLogsByLeadId(lead.id)].reverse(); // Chronological (oldest first)
+      }
+
+      // 5. Analyze all logs together (unified timeline)
+      const unifiedOutcome = await analyzeUnifiedParticipantOutcomeWithLLM(allCalls);
+
+      // 6. Update lead status in DB
+      const updatedLead = statusEngine.evaluateLeadStatus(lead, normalizedEvent, unifiedOutcome);
+      updatedLead.last_activity = new Date().toISOString();
+      updatedLead.updated_at = new Date().toISOString();
+
+      if (isSupabaseConfigured && supabase) {
+        await supabase.from('leads').update(updatedLead).eq('id', lead.id);
+      } else {
+        inMemoryDB.saveLead(updatedLead);
+      }
+
+      // 7. Update latest call log's raw_webhook_data to include LLM outcome
+      const enrichedPayload = {
+        ...rawPayload,
+        llm_outcome: unifiedOutcome,
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        await supabase
+          .from('call_logs')
+          .update({ raw_webhook_data: enrichedPayload })
+          .eq('call_id', normalizedEvent.callId);
+      } else {
+        const latest = inMemoryDB.getCallLogsByLeadId(lead.id)[0];
+        if (latest) {
+          latest.raw_webhook_data = enrichedPayload;
+        }
       }
 
       // 7. Create Activity Timeline entry

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { isSupabaseConfigured, supabase, inMemoryDB } from '../config/db';
 import { analyzeCallWithLLM } from '../services/llmAnalysisService';
-import { analyzeCallOutcomeWithLLM } from '../services/llmOutcomeService';
+import { analyzeCallOutcomeWithLLM, analyzeUnifiedParticipantOutcomeWithLLM } from '../services/llmOutcomeService';
 import { statusEngine } from '../services/statusEngine';
 
 export class StatsController {
@@ -225,7 +225,13 @@ export class StatsController {
 
       const client = supabase!;
 
-      // Fetch all call logs in chronological order (ascending) to reconstruct state correctly
+      // 1. Fetch all leads
+      const { data: leads, error: errLeads } = await client.from('leads').select('*');
+      if (errLeads || !leads) {
+        throw new Error(errLeads?.message || 'Failed to fetch leads');
+      }
+
+      // 2. Fetch all call logs chronologically (ascending)
       const { data: logs, error: errLogs } = await client
         .from('call_logs')
         .select('*')
@@ -235,138 +241,109 @@ export class StatsController {
         throw new Error(errLogs?.message || 'Failed to fetch call logs');
       }
 
-      console.log(`[Re-analysis] Processing ${logs.length} call logs...`);
+      console.log(`[Re-analysis] Reconstructing status for ${leads.length} leads using ${logs.length} call logs...`);
 
-      // Run LLM analysis in batches of 5 to avoid overloading Groq API
+      // Run analysis in batches of 5 leads to avoid rate limits
       const BATCH_SIZE = 5;
-      const analyzedLogs = [];
+      let processedCount = 0;
 
-      for (let i = 0; i < logs.length; i += BATCH_SIZE) {
-        const batch = logs.slice(i, i + BATCH_SIZE);
-        console.log(`[Re-analysis] Batch ${Math.floor(i / BATCH_SIZE) + 1}...`);
-        
-        const batchResults = await Promise.all(
-          batch.map(async (log: any) => {
-            const outcomeResult = await analyzeCallOutcomeWithLLM(
-              log.duration || 0,
-              log.call_status || 'completed',
-              log.outcome || '',
-              log.transcript || '',
-              log.summary || '',
-              log.agent_id || ''
-            );
+      for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+        const batch = leads.slice(i, i + BATCH_SIZE);
+        console.log(`[Re-analysis] Analyzing lead batch ${Math.floor(i / BATCH_SIZE) + 1}...`);
 
-            // Update call log raw_webhook_data.llm_outcome in Supabase
+        await Promise.all(
+          batch.map(async (lead: any) => {
+            const leadLogs = logs.filter(log => log.lead_id === lead.id);
+
+            if (leadLogs.length === 0) {
+              // Reset status to Not Started if no calls
+              await client
+                .from('leads')
+                .update({
+                  agent_status: 'not_started',
+                  cold_call_status: 'not_started',
+                  followup_status: 'not_started',
+                  reminder_status: 'not_started',
+                  number_status: 'not_started',
+                  participated_status: 'not_started',
+                  email_status: 'not_started',
+                  final_status: 'Not Started',
+                })
+                .eq('id', lead.id);
+              return;
+            }
+
+            // Run unified outcome analysis on all logs chronologically
+            const unifiedOutcome = await analyzeUnifiedParticipantOutcomeWithLLM(leadLogs);
+
+            // Update the latest call log's raw_webhook_data to hold the final llm_outcome
+            const latestLog = leadLogs[leadLogs.length - 1];
             const updatedRawData = {
-              ...(log.raw_webhook_data || {}),
-              llm_outcome: outcomeResult,
+              ...(latestLog.raw_webhook_data || {}),
+              llm_outcome: unifiedOutcome,
             };
 
             await client
               .from('call_logs')
               .update({ raw_webhook_data: updatedRawData })
-              .eq('id', log.id);
+              .eq('id', latestLog.id);
 
-            return {
-              ...log,
-              raw_webhook_data: updatedRawData,
-              llm_outcome: outcomeResult,
+            // Construct clean initial state to re-evaluate with the cumulative unified outcome
+            let cleanState = {
+              ...lead,
+              agent_status: 'not_started' as any,
+              cold_call_status: 'not_started' as any,
+              followup_status: 'not_started' as any,
+              reminder_status: 'not_started' as any,
+              number_status: 'not_started' as any,
+              participated_status: 'not_started' as any,
+              email_status: 'not_started' as any,
+              final_status: 'Not Started' as any,
             };
+
+            const mockEvent = {
+              event: 'call.completed',
+              callId: latestLog.call_id,
+              phone: lead.phone,
+              agentId: latestLog.agent_id,
+              callStatus: latestLog.call_status,
+              outcome: latestLog.outcome,
+              duration: latestLog.duration,
+              transcript: latestLog.transcript,
+              summary: latestLog.summary,
+              callbackRequired: latestLog.callback_required,
+              callbackTime: latestLog.callback_time,
+              timestamp: latestLog.created_at,
+              rawPayload: updatedRawData,
+            };
+
+            const finalState = statusEngine.evaluateLeadStatus(cleanState, mockEvent, unifiedOutcome);
+
+            // Update lead state in Supabase
+            await client
+              .from('leads')
+              .update({
+                agent_status: finalState.agent_status,
+                cold_call_status: finalState.cold_call_status,
+                followup_status: finalState.followup_status,
+                reminder_status: finalState.reminder_status,
+                number_status: finalState.number_status,
+                participated_status: finalState.participated_status,
+                email_status: finalState.email_status,
+                final_status: finalState.final_status,
+                last_activity: finalState.last_activity,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', lead.id);
+
+            processedCount++;
           })
         );
-        analyzedLogs.push(...batchResults);
-      }
-
-      // Fetch all leads
-      const { data: leads, error: errLeads } = await client.from('leads').select('*');
-      if (errLeads || !leads) {
-        throw new Error(errLeads?.message || 'Failed to fetch leads');
-      }
-
-      console.log(`[Re-analysis] Reconstructing status for ${leads.length} leads...`);
-
-      // Reconstruct lead states
-      for (const lead of leads) {
-        // Find all analyzed logs for this lead in chronological order
-        const leadLogs = analyzedLogs.filter(log => log.lead_id === lead.id);
-
-        if (leadLogs.length === 0) {
-          // Reset status to Not Started if no calls
-          await client
-            .from('leads')
-            .update({
-              agent_status: 'not_started',
-              cold_call_status: 'not_started',
-              followup_status: 'not_started',
-              reminder_status: 'not_started',
-              number_status: 'not_started',
-              participated_status: 'not_started',
-              email_status: 'not_started',
-              final_status: 'Not Started',
-            })
-            .eq('id', lead.id);
-          continue;
-        }
-
-        // Initialize clean lead object for state rebuild
-        let currentLeadState = {
-          ...lead,
-          agent_status: 'not_started' as any,
-          cold_call_status: 'not_started' as any,
-          followup_status: 'not_started' as any,
-          reminder_status: 'not_started' as any,
-          number_status: 'not_started' as any,
-          participated_status: 'not_started' as any,
-          email_status: 'not_started' as any,
-          final_status: 'Not Started' as any,
-        };
-
-        // Sequentially evaluate each call
-        for (const log of leadLogs) {
-          const mockEvent = {
-            event: 'call.completed',
-            callId: log.call_id,
-            phone: lead.phone,
-            agentId: log.agent_id,
-            callStatus: log.call_status,
-            outcome: log.outcome,
-            duration: log.duration,
-            transcript: log.transcript,
-            summary: log.summary,
-            callbackRequired: log.callback_required,
-            callbackTime: log.callback_time,
-            timestamp: log.created_at,
-            rawPayload: log.raw_webhook_data,
-          };
-
-          currentLeadState = statusEngine.evaluateLeadStatus(
-            currentLeadState,
-            mockEvent,
-            log.llm_outcome
-          );
-        }
-
-        // Save final updated lead state to Supabase
-        await client
-          .from('leads')
-          .update({
-            agent_status: currentLeadState.agent_status,
-            cold_call_status: currentLeadState.cold_call_status,
-            followup_status: currentLeadState.followup_status,
-            reminder_status: currentLeadState.reminder_status,
-            number_status: currentLeadState.number_status,
-            participated_status: currentLeadState.participated_status,
-            email_status: currentLeadState.email_status,
-            final_status: currentLeadState.final_status,
-            last_activity: currentLeadState.last_activity,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', lead.id);
       }
 
       res.json({
         success: true,
-        message: `Successfully re-analyzed all ${analyzedLogs.length} call logs and updated status for ${leads.length} leads.`,
+        message: `Successfully re-analyzed chronological history for ${processedCount} leads.`,
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
