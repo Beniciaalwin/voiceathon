@@ -20,6 +20,7 @@ app.use(express.json());
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/dashboard', statsRoutes);
+app.use('/api', statsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
