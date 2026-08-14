@@ -574,7 +574,7 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
                   'Unclear': 'unclear'
                 };
 
-                const latestCallOutcome = latestCall?.raw_webhook_data?.llm_outcome || {
+                const latestCallOutcome = lead.llm_analysis || calls[0]?.raw_webhook_data?.llm_outcome || {
                   interest: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
                   participation: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
                   follow_up: { status: lead.followup_status === 'pending' ? 'pending' : 'no_evidence', evidence: null, confidence: 1.0 },
