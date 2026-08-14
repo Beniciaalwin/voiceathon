@@ -560,13 +560,27 @@ export const CandidateDrawer: React.FC<CandidateDrawerProps> = ({ lead, onClose 
 
               {/* AI OUTCOME & REASON SUMMARY CARD */}
               {(() => {
+                const fallbackOutcomeMap: Record<string, string> = {
+                  'Not Started': 'not_started',
+                  'No Answer': 'no_answer',
+                  'Call Failed': 'call_failed',
+                  'Invalid Number': 'invalid_number',
+                  'Not Interested': 'not_interested',
+                  'Follow-up Pending': 'follow_up_pending',
+                  'Reminder Pending': 'reminder_pending',
+                  'Participated': 'participated',
+                  'Completed': 'completed',
+                  'Not Completed': 'not_completed',
+                  'Unclear': 'unclear'
+                };
+
                 const latestCallOutcome = latestCall?.raw_webhook_data?.llm_outcome || {
                   interest: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
                   participation: { status: lead.participated_status === 'completed' ? 'confirmed' : 'no_evidence', evidence: null, confidence: 1.0 },
                   follow_up: { status: lead.followup_status === 'pending' ? 'pending' : 'no_evidence', evidence: null, confidence: 1.0 },
                   reminder: { status: lead.reminder_status === 'pending' ? 'pending' : 'no_evidence', evidence: null, confidence: 1.0 },
                   number: { status: lead.number_status === 'completed' ? 'purchased' : (lead.number_status === 'pending' ? 'planning_pending' : 'no_evidence'), evidence: null, confidence: 1.0 },
-                  final_outcome: lead.final_status === 'Not Interested' ? 'not_interested' : (lead.final_status === 'Completed' ? 'completed' : 'participated'),
+                  final_outcome: fallbackOutcomeMap[lead.final_status] || 'not_started',
                   confidence: 0.8,
                   reason: 'Status mapped from database state.'
                 };
