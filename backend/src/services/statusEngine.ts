@@ -18,8 +18,6 @@ export class StatusEngine {
         // If there was any conversation/interest evaluation, call connected
         updatedLead.agent_status = 'completed';
       } else {
-        const hasConnected = logs => logs.some((l: any) => l.duration > 0 && l.call_status !== 'failed');
-        // fallback check if connection happened
         updatedLead.agent_status = 'completed';
       }
 
